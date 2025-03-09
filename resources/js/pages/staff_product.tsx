@@ -5,15 +5,15 @@ import { Head } from "@inertiajs/react";
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: "Point of Sale",
-        href: "/staff/pos",
+        title: "Products",
+        href: "/staff/products",
     },
 ];
 
-export default function StaffPOS() {
+export default function ProductsPOS() {
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
-            <Head title="Point of Sale" />
+            <Head title="Products" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                     {[...Array(3)].map((_, index) => (

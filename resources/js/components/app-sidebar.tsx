@@ -4,14 +4,26 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, ShoppingCart, ClipboardList } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Admin Dashboard',
+        title: 'Dashboard',
         url: '/admin/dashboard',
         icon: LayoutGrid,
+    },
+
+    {
+        title: 'Inventory',
+        url: '/admin/inventory',
+        icon: ShoppingCart ,
+    },
+
+    {
+        title: 'Products',
+        url: '/admin/products',
+        icon: ClipboardList ,
     },
 ];
 

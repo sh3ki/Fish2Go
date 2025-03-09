@@ -35,12 +35,12 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user(); // Get the authenticated user
     
         if ($user->usertype === 'admin') {
-            return redirect()->intended(route('admin.dashboard')); // ✅ Correct redirect
+            return redirect()->intended(route('admin.dashboard')); 
         } elseif ($user->usertype === 'staff') {
-            return redirect()->intended(route('staff.dashboard')); // ✅ Correct redirect
+            return redirect()->intended(route('staff.pos')); 
         }
     
-        return redirect()->intended(route('home')); // ✅ Redirect to home instead of looping
+        return redirect()->intended(route('home')); 
     }
     
 

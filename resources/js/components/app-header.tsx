@@ -21,6 +21,8 @@ const mainNavItems: NavItem[] = [
         url: '/dashboard',
         icon: LayoutGrid,
     },
+
+    
 ];
 
 const rightNavItems: NavItem[] = [
