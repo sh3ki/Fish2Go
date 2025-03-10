@@ -1,8 +1,15 @@
 import { ReactNode, useState } from "react";
-import { useForm, router } from "@inertiajs/react";
+import { useForm } from "@inertiajs/react";
 import { BreadcrumbItem } from "@/types";
-import { Menu, X } from "lucide-react";
-import ConfirmLogout from "@/components/ConfirmLogout"; 
+import { Menu, Folder, ShoppingCart, CreditCard, DollarSign, LogOut } from "lucide-react";
+import ConfirmLogout from "@/components/ConfirmLogout";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useInitials } from "@/hooks/use-initials";
+import AppLogoIcon from "@/components/app-logo-icon";
+import { Link, usePage } from "@inertiajs/react";
+import { cn } from "@/lib/utils";
 
 interface StaffLayoutProps {
     breadcrumbs?: BreadcrumbItem[];
@@ -10,96 +17,79 @@ interface StaffLayoutProps {
 }
 
 export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps) {
-    const { post } = useForm(); // Inertia form handler
-    const [isModalOpen, setIsModalOpen] = useState(false); // State for sidebar modal
-    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // State for logout modal
+    const { post } = useForm();
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const page = usePage();
+    const { auth } = page.props;
+    const getInitials = useInitials();
 
     const handleLogout = () => {
-        post(route("logout")); // Proceed with logout
-    };
-
-    const navigateTo = (routeName: string) => {
-        router.get(route(routeName)); // Navigate using Inertia.js
-        setIsModalOpen(false); // Close modal after clicking
+        post(route("logout"));
     };
 
     return (
         <div className="flex min-h-screen flex-col">
             {/* Header Section */}
-            <header className="bg-gray-800 text-white p-4 flex justify-between items-center">
-                <h1 className="text-xl font-semibold">Staff POS</h1>
-                <div className="flex items-center gap-4">
-                    {/* Hamburger Button */}
-                    <button 
-                        className="text-white p-2 rounded hover:bg-gray-700"
-                        onClick={() => setIsModalOpen(true)}
-                    >
-                        <Menu size={24} />
-                    </button>
-
-                    {/* Logout Button */}
-                    <button 
-                        onClick={() => setIsLogoutModalOpen(true)}
-                        className="text-sm bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-                    >
-                        Log Out
-                    </button>
+            <header className={cn("border-b p-4 flex items-center justify-between shadow-md", "bg-sidebar dark:bg-dark-sidebar")}> 
+                {/* Logo (Matches AppHeader) */}
+                <div className="flex items-center space-x-2">
+                    <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-md">
+                        <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
+                    </div>
+                    <div className="ml-1 grid flex-1 text-left text-sm">
+                        <span className="mb-0.5 truncate leading-none font-semibold">Fish2Go</span>
+                    </div>
                 </div>
+                <h1 className="text-xl font-semibold flex-1 text-center text-black dark:text-white">Point of Sale</h1>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="size-10 rounded-full p-1">
+                            <Avatar className="size-8 overflow-hidden rounded-full">
+                                <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
+                                <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                                    {getInitials(auth.user.name)}
+                                </AvatarFallback>
+                            </Avatar>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 bg-sidebar dark:bg-dark-sidebar text-white" align="end">
+                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.products'))}>
+                            <ShoppingCart size={18} /> Products
+                        </button>
+                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.inventory'))}>
+                            <Folder size={18} /> Inventory
+                        </button>
+                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.transactions'))}>
+                            <CreditCard size={18} /> Transactions
+                        </button>
+                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.expenses'))}>
+                            <DollarSign size={18} /> Expenses
+                        </button>
+                        <button className="w-full text-left p-2 flex items-center gap-2 text-red-400 hover:bg-gray-700" onClick={() => setIsLogoutModalOpen(true)}>
+                            <LogOut size={18} /> Logout
+                        </button>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </header>
 
             {/* Main Content */}
-            <main className="flex flex-1 flex-col p-4">{children}</main>
-
-            {/* Modal for Navigation */}
-            {isModalOpen && (
-                <div 
-                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
-                    onClick={() => setIsModalOpen(false)}
-                >
-                    <div 
-                        className="bg-white p-6 rounded-lg shadow-lg w-80 relative"
-                        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
-                    >
-                        {/* Modal Header */}
-                        <div className="flex justify-between items-center border-b pb-2 mb-4">
-                            <h2 className="text-lg font-semibold text-black">Navigation</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="p-1">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        {/* Navigation Links */}
-                        <ul className="space-y-3">
-                            <li>
-                                <button 
-                                    onClick={() => navigateTo("staff.pos")} 
-                                    className="block text-blue-500 hover:underline w-full text-left"
-                                >
-                                    POS
-                                </button>
-                            </li>
-                            <li>
-                                <button 
-                                    onClick={() => navigateTo("staff.inventory")} 
-                                    className="block text-blue-500 hover:underline w-full text-left"
-                                >
-                                    Inventory
-                                </button>
-                            </li>
-                            <li>
-                                <button 
-                                    onClick={() => navigateTo("staff.products")} 
-                                    className="block text-blue-500 hover:underline w-full text-left"
-                                >
-                                    Products
-                                </button>
-                            </li>
+            <main className="flex-1 p-4">
+                {breadcrumbs && (
+                    <nav className="mb-4">
+                        <ul className="flex space-x-2">
+                            {breadcrumbs.map((breadcrumb, index) => (
+                                <li key={index}>
+                                    {index < breadcrumbs.length - 1 && <span className="mx-2">/</span>}
+                                </li>
+                            ))}
                         </ul>
-                    </div>
-                </div>
-            )}
+                    </nav>
+                )}
+                {children}
+            </main>
 
-            {/* Confirmation Logout Modal */}
+            {/* Confirm Logout Modal */}
             <ConfirmLogout 
                 isOpen={isLogoutModalOpen} 
                 onClose={() => setIsLogoutModalOpen(false)}

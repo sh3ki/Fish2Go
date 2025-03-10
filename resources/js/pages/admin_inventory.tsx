@@ -11,15 +11,21 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+type InventoryForm = {
+    name: string;
+    quantity: string;
+};
+
 export default function AdminInventory() {
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors } = useForm<InventoryForm>({
         name: '',
         quantity: '',
-    });
+    });    
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setData(e.target.name, e.target.value);
-    };
+        const { name, value } = e.target;
+        setData(name as keyof InventoryForm, value);
+    };    
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

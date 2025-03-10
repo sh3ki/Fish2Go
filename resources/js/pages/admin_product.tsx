@@ -9,7 +9,29 @@ import { Head } from "@inertiajs/react";
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: "Products", href: "/admin/products" }];
 
-export default function AdminProduct({ products }) {
+type Product = {
+    id: number;
+    product_name: string;
+    product_category: string;
+    product_price: number;
+    product_quantity: number;
+    product_image: string | null;
+};
+
+type PaginationLink = {
+    url: string | null;
+    label: string;
+    active: boolean;
+};
+
+interface ProductProps {
+    products: {
+        data: Product[];
+        links: PaginationLink[];
+    };
+}
+
+export default function AdminProduct({ products }: ProductProps) {
     const { data, setData, reset } = useForm({
         product_name: "",
         product_category: "",
@@ -212,7 +234,7 @@ export default function AdminProduct({ products }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {products.data.map((product) => (
+                            {products.data.map((product: Product) => (
                                 <tr key={product.id} className="text-center">
                                     <td className="border px-4 py-2">{product.product_name}</td>
                                     <td className="border px-4 py-2">{product.product_category}</td>
@@ -234,7 +256,7 @@ export default function AdminProduct({ products }) {
 
                     {/* Pagination Links */}
                     <div className="flex justify-center gap-2 mt-4">
-                        {products.links.map((link, index) => (
+                        {products.links.map((link: PaginationLink, index: number) => (
                             <Link key={index} href={link.url || "#"} className={`px-4 py-2 border rounded ${link.active ? "bg-blue-500 text-white" : ""}`}>
                                 {link.label}
                             </Link>

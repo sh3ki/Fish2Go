@@ -27,6 +27,9 @@ export default function Register() {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         post(route('register'), {
+            onSuccess: () => {
+                window.location.href = route('login');
+            },
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
@@ -103,7 +106,7 @@ export default function Register() {
 
                     <Button type="submit" className="mt-2 w-full" tabIndex={5} disabled={processing}>
                         {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                        Create account
+                        Register
                     </Button>
                 </div>
 

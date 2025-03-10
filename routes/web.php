@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminInventoryController; // Add this line
 use App\Http\Controllers\AdminProductController; // Add this line
 use App\Http\Controllers\StaffInventoryController; // Add this line
 use App\Http\Controllers\StaffProductController; // Add this line
+use App\Http\Controllers\OrderController; // Add this line
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -31,6 +32,7 @@ Route::middleware(['staff'])->group(function () {
     Route::get('staff/pos', [StaffDashboardController::class, 'index'])->name('staff.pos'); 
     Route::get('staff/inventory', [StaffInventoryController::class, 'index'])->name('staff.inventory'); 
     Route::get('staff/products', [StaffProductController::class, 'index'])->name('staff.products'); 
+    Route::post('/staff/checkout', [StaffDashboardController::class, 'store'])->name('staff.checkout');
 });
 
 

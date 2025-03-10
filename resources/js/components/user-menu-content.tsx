@@ -2,8 +2,10 @@ import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSep
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type User } from '@/types';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { LogOut, Settings } from 'lucide-react';
+import { useState } from 'react';
+import ConfirmLogout from '@/components/ConfirmLogout'; // Ensure correct case-sensitive path
 
 interface UserMenuContentProps {
     user: User;
@@ -11,6 +13,11 @@ interface UserMenuContentProps {
 
 export function UserMenuContent({ user }: UserMenuContentProps) {
     const cleanup = useMobileNavigation();
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+    const handleLogout = () => {
+        router.post(route('logout')); // Inertia.js recommended way to logout
+    };
 
     return (
         <>
@@ -29,12 +36,26 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                 </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-                <Link className="block w-full" method="post" href={route('logout')} as="button" onClick={cleanup}>
-                    <LogOut className="mr-2" />
-                    Log out
-                </Link>
+            
+            {/* Fix: Proper Logout Button without `asChild` */}
+            <DropdownMenuItem 
+                onSelect={(e) => {
+                    e.preventDefault(); // Prevent dropdown from closing automatically
+                    cleanup(); // Close menu manually
+                    setIsLogoutModalOpen(true); // Open modal
+                }}
+                className="cursor-pointer"
+            >
+                <LogOut className="mr-2" />
+                Log out
             </DropdownMenuItem>
+
+            {/* Logout Confirmation Modal */}
+            <ConfirmLogout
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                onConfirm={handleLogout}
+            />
         </>
     );
 }
