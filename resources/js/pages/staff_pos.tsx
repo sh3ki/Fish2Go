@@ -130,7 +130,7 @@ export default function StaffPOS({ products }: PosProps) {
 
         post(route('staff.orders.store'), {
             onSuccess: (page) => {
-                if (page.props.flash.success) {
+                if ((page.props.flash as { success?: boolean }).success) {
                     setShowReceipt(true);
                     setShowPaymentModal(false);
                 } else {
