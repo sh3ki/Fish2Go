@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { useForm } from "@inertiajs/react";
+import { router, useForm } from "@inertiajs/react";
 import { BreadcrumbItem } from "@/types";
 import { Menu, Folder, ShoppingCart, CreditCard, DollarSign, LogOut } from "lucide-react";
 import ConfirmLogout from "@/components/ConfirmLogout";
@@ -20,7 +20,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
     const { post } = useForm();
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const page = usePage();
-    const { auth } = page.props;
+    const { auth } = page.props as unknown as { auth: { user: { avatar: string; name: string; } } };
     const getInitials = useInitials();
 
     const handleLogout = () => {
@@ -76,7 +76,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
             {/* Main Content */}
             <main className="flex-1 p-4">
                 {breadcrumbs && (
-                    <nav className="mb-4">
+                    <nav>
                         <ul className="flex space-x-2">
                             {breadcrumbs.map((breadcrumb, index) => (
                                 <li key={index}>

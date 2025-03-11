@@ -1,9 +1,12 @@
 import { useState } from "react";
 import StaffLayout from "@/components/staff/StaffLayout";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, useForm, usePage } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type BreadcrumbItem } from "@/types";
+import { MinusCircle } from "lucide-react";
+import Modal from "@/components/ui/modal";
+import axios from "axios"; // ✅ Added for real-time product fetching
 
 type Product = {
     id: number;
@@ -15,6 +18,7 @@ type Product = {
 };
 
 type OrderFormData = {
+    items: { product_id: number; quantity: number }[];
     subtotal: number;
     tax: number;
     discount: number;
@@ -32,11 +36,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function StaffPOS({ products }: PosProps) {
-    console.log("Products:", products);
-
-    if (!products || products.length === 0) {
-        return <p className="text-center text-gray-500">No products available</p>;
-    }   
+    const { flash, errors } = usePage().props;
     const [cart, setCart] = useState<Product[]>([]);
     const [subtotal, setSubtotal] = useState(0);
     const [tax, setTax] = useState(0);
@@ -44,7 +44,11 @@ export default function StaffPOS({ products }: PosProps) {
     const [total, setTotal] = useState(0);
     const [payment, setPayment] = useState<number | null>(null);
     const [change, setChange] = useState<number | null>(null);
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [enteredPayment, setEnteredPayment] = useState("");
     const { data, setData, post } = useForm<OrderFormData>({
+        items: [],
         subtotal: 0,
         tax: 0,
         discount: 0,
@@ -52,17 +56,43 @@ export default function StaffPOS({ products }: PosProps) {
         payment: 0,
         change: 0,
     });
-    
 
+
+    
     // Add Product to Cart
     const addToCart = (product: Product) => {
-        setCart([...cart, product]);
-        updateTotals([...cart, product]);
+        const existingProduct = cart.find(item => item.id === product.id);
+        if (existingProduct) {
+            if (existingProduct.product_quantity + 1 > product.product_quantity) {
+                alert("Not enough stock available.");
+                return;
+            }
+            const updatedCart = cart.map(item =>
+                item.id === product.id ? { ...item, product_quantity: item.product_quantity + 1 } : item
+            );
+            setCart(updatedCart);
+            updateTotals(updatedCart);
+        } else {
+            if (product.product_quantity < 1) {
+                alert("Not enough stock available.");
+                return;
+            }
+            const updatedCart = [...cart, { ...product, product_quantity: 1 }];
+            setCart(updatedCart);
+            updateTotals(updatedCart);
+        }
+    };
+
+    // Remove Product from Cart
+    const removeFromCart = (productId: number) => {
+        const updatedCart = cart.filter(item => item.id !== productId);
+        setCart(updatedCart);
+        updateTotals(updatedCart);
     };
 
     // Calculate Totals
     const updateTotals = (cartItems: Product[]) => {
-        const subtotalAmount = cartItems.reduce((acc, item) => acc + item.product_price, 0);
+        const subtotalAmount = cartItems.reduce((acc, item) => acc + item.product_price * item.product_quantity, 0);
         const taxAmount = subtotalAmount * 0.1; // 10% tax
         const discountAmount = 0; // Change if needed
         const totalAmount = subtotalAmount + taxAmount - discountAmount;
@@ -75,46 +105,85 @@ export default function StaffPOS({ products }: PosProps) {
 
     // Checkout Function
     const handleCheckout = () => {
-        const enteredPayment = parseFloat(prompt("Enter Payment Amount:") || "0");
-        if (isNaN(enteredPayment) || enteredPayment < total) {
-            alert("Invalid payment amount!");
+        setShowPaymentModal(true);
+    };
+
+    const handlePaymentSubmit = () => {
+        const paymentAmount = parseFloat(enteredPayment);
+        if (isNaN(paymentAmount) || paymentAmount < total) {
             return;
         }
-        
-        setPayment(enteredPayment);
-        setChange(enteredPayment - total);
-    
+
+        setPayment(paymentAmount);
+        setChange(paymentAmount - total);
+
+        // Prepare the order data
         setData({
+            items: cart.map(item => ({ product_id: item.id, quantity: item.product_quantity })),
             subtotal,
             tax,
             discount,
             total,
-            payment: enteredPayment,
-            change: enteredPayment - total,
+            payment: paymentAmount,
+            change: paymentAmount - total,
         });
-    
-        post("/staff/checkout");
+
+        post(route('staff.orders.store'), {
+            onSuccess: (page) => {
+                if (page.props.flash.success) {
+                    setShowReceipt(true);
+                    setShowPaymentModal(false);
+                } else {
+                    alert("An error occurred during checkout.");
+                }
+            },
+            onError: (errors) => {
+                alert(errors.error || "An error occurred during checkout.");
+            },
+        });
+    };
+
+    const handleNextOrder = () => {
+        setCart([]);
+        setSubtotal(0);
+        setTax(0);
+        setDiscount(0);
+        setTotal(0);
+        setPayment(null);
+        setChange(null);
+        setEnteredPayment("");
+        setShowReceipt(false);
+        setShowPaymentModal(false); // Hide the payment modal
+    };
+
+    // Print Receipt
+    const handlePrintReceipt = () => {
+        window.print();
     };
 
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
             <Head title="Point of Sale" />
 
-            <div className="grid grid-cols-2 gap-4 p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Left Side: Products */}
                 <Card className="bg-white dark:bg-gray-800">
                     <CardHeader>
                         <CardTitle className="text-lg font-semibold">Products</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {products.map((product) => (
-                                <div key={product.id} className="border rounded p-2 text-center bg-gray-100 dark:bg-gray-900">
-                                    <img src={`/storage/₱{product.product_image}`} alt={product.product_name} className="w-24 h-24 mx-auto rounded" />
-                                    <h3 className="text-sm font-semibold">{product.product_name}</h3>
-                                    <p className="text-sm">₱{Number(product.product_price).toFixed(2)}</p>
-                                    <Button className="bg-blue-500 text-white px-2 py-1 rounded mt-2 w-full" onClick={() => addToCart(product)}>
-                                        Add to Order
+                                <div key={product.id} className="border rounded-lg p-3 text-center h-40 w-32 bg-gray-100 dark:bg-gray-900">
+                                    <img src={`/storage/${product.product_image}`}
+                                        alt="Product"
+                                        className="w-16 h-12 mx-auto rounded" />
+                                    <h3 className="text-[13px] font-semibold mt-0.5">{product.product_name}</h3>
+                                    <p className="text-[10px] mt-0.5">Qty: {Number(product.product_quantity)}</p>
+                                    <p className="text-[11px] mt-0.5">₱ {Number(product.product_price).toFixed(2)}</p>
+                               
+                                    <Button className="text-[11px] bg-blue-500 text-white px-2 py-1 rounded mt-1 w-full h-7" onClick={() => addToCart(product)}>
+                                        ADD
                                     </Button>
                                 </div>
                             ))}
@@ -128,32 +197,104 @@ export default function StaffPOS({ products }: PosProps) {
                         <CardTitle className="text-lg font-semibold">Order Summary</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ul>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {cart.map((item, index) => (
-                                <li key={index} className="flex justify-between border-b py-2">
-                                    <span>{item.product_name}</span>
-                                    <span>₱{Number(item.product_price).toFixed(2)}</span>
-                                </li>
+                                <div key={index} className="border rounded-lg p-3 text-center h-40 w-32 bg-gray-100 dark:bg-gray-900 relative">
+                                    <img src={`/storage/${item.product_image}`}
+                                        alt="Product"
+                                        className="w-16 h-12 mx-auto rounded" />
+                                        <br />
+                                    <h3 className="text-[13px] font-semibold">{item.product_name}</h3>
+                                    <p className="text-[12px] mt-0.5">Qty: {item.product_quantity}</p>
+                                    <p className="text-sm mt-1">Total: ₱{(item.product_price * item.product_quantity).toFixed(2)}</p>
+                                    <button className="absolute top-2 right-2 text-red-500" onClick={() => removeFromCart(item.id)}>
+                                        <MinusCircle size={20} />
+                                    </button>
+                                </div>
                             ))}
-                        </ul>
-                        <p className="mt-4">Subtotal: ₱{subtotal.toFixed(2)}</p>
-                        <p>Tax: ₱{tax.toFixed(2)}</p>
-                        <p>Discount: ₱{discount.toFixed(2)}</p>
-                        <p className="font-semibold">Total: ₱{total.toFixed(2)}</p>
+                        </div>
+                        <br />
 
-                        {payment !== null && (
-                            <>
-                                <p className="text-green-500">Payment: ₱{payment.toFixed(2)}</p>
-                                <p className="text-blue-500">Change: ₱{change?.toFixed(2)}</p>
-                            </>
-                        )}
+                        <table className="mt-4 w-full text-left">
+                            <tbody>
+                                <tr>
+                                    <td className="font-semibold">Subtotal:</td>
+                                    <td>₱ {subtotal.toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td className="font-semibold">Tax:</td>
+                                    <td>₱ {tax.toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td className="font-semibold">Discount:</td>
+                                    <td>₱ {discount.toFixed(2)}</td>
+                                </tr>
+                                {payment !== null && (
+                                    <>
+                                        <tr>
+                                            <td className="font-semibold text-white-500">Cash:</td>
+                                            <td>₱ {payment.toFixed(2)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="font-semibold">Total:</td>
+                                            <td>₱ {total.toFixed(2)}</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td className="font-semibold text-white-500">------------</td>
+                                            <td className="font-semibold text-white-500">------------</td>
+                                        </tr>
+
+                                        <tr>
+                                            <td className="font-semibold text-white-500">Change:</td>
+                                            <td>₱ {change?.toFixed(2)}</td>
+                                        </tr>
+                                    </>
+                                )}
+                            </tbody>
+                        </table>
+
 
                         <Button className="bg-green-500 text-white px-4 py-2 mt-4 w-full" onClick={handleCheckout}>
-                            Checkout
+                            CHECKOUT
                         </Button>
+                        <br />
+
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Payment Modal */}
+            {showPaymentModal && (
+                <Modal onClose={() => setShowPaymentModal(false)}>
+                    <div className="p-6">
+                        <h2 className="text-lg font-semibold mb-4">Enter Payment Amount</h2>
+                        <input
+                            type="number"
+                            className="block w-full rounded-md border-2 border-red-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                            value={enteredPayment}
+                            onChange={(e) => setEnteredPayment(e.target.value)}
+                            required
+                        />
+                        <div className="mt-4 flex justify-end">
+                            <Button className="bg-blue-500 text-white px-4 py-2 mr-2" onClick={handlePaymentSubmit}>
+                                Submit
+                            </Button>
+                            <Button className="bg-red-500 text-white px-4 py-2 mr-2" onClick={() => setShowPaymentModal(false)}>
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                        <Button className="bg-red-500 text-white px-4 py-2 mr-8" onClick={handleNextOrder}>
+                            Next Order
+                        </Button>
+                    </div>
+                </Modal>
+            )}
+
+        
+          
         </StaffLayout>
     );
 }

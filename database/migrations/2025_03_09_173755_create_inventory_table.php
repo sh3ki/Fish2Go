@@ -11,6 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->integer('quantity');
+            $table->string('item_image')->nullable();
             $table->timestamps();
         });
     }

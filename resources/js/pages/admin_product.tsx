@@ -1,268 +1,264 @@
 import { useState } from "react";
-import { useForm, Link } from "@inertiajs/react";
+import { useForm, usePage } from "@inertiajs/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/layouts/app-layout";
-import { type BreadcrumbItem } from "@/types";
 import { Head } from "@inertiajs/react";
+import { type BreadcrumbItem } from '@/types';
+import toast, { Toaster } from "react-hot-toast"; // Import toast
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: "Products", href: "/admin/products" }];
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Product',
+        href: '/admin/product',
+    },
+];
 
-type Product = {
+// Define TypeScript interfaces
+interface Product {
     id: number;
     product_name: string;
     product_category: string;
     product_price: number;
     product_quantity: number;
     product_image: string | null;
-};
+    created_at: string;
+}
 
-type PaginationLink = {
-    url: string | null;
-    label: string;
-    active: boolean;
-};
-
-interface ProductProps {
+interface PageProps {
     products: {
         data: Product[];
-        links: PaginationLink[];
+    };
+    flash?: {
+        success?: string;
+        error?: string;
     };
 }
 
-export default function AdminProduct({ products }: ProductProps) {
-    const { data, setData, reset } = useForm({
+export default function AdminProduct({ products }: PageProps) {
+    const { flash } = usePage<PageProps>().props; // Get flash messages from Inertia
+    const { data, setData, reset, post, processing, errors } = useForm({
         product_name: "",
         product_category: "",
         product_price: "",
         product_quantity: "",
-        product_image: "",
+        product_image: null as File | null,
     });
 
+    const [searchQuery, setSearchQuery] = useState("");
+
     const [previewImage, setPreviewImage] = useState<string | null>(null);
-    const [processing, setProcessing] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // Handle image upload and store temporarily
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const formData = new FormData();
-            formData.append("product_image", file);
-    
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-            console.log("CSRF Token:", csrfToken); // Log CSRF token for debugging
-    
-            try {
-                const response = await fetch(route("admin.products.uploadTempImage"), {
-                    method: "POST",
-                    headers: {
-                        "X-CSRF-TOKEN": csrfToken,
-                    },
-                    body: formData,
-                });
-    
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-    
-                const result = await response.json();
-                console.log(result); // Log the response for debugging
-    
-                if (result.filePath) {
-                    setData("product_image", result.filePath); // Store the file path
-                    setPreviewImage(URL.createObjectURL(file)); // Show preview
-                } else {
-                    setErrorMessage("Failed to upload image. Please try again.");
-                }
-            } catch (error) {
-                console.error("Image upload failed", error);
-                setErrorMessage("An error occurred while uploading the image.");
-            }
-        }
+        if (!file) return;
+        setData("product_image", file);
+        setPreviewImage(URL.createObjectURL(file));
     };
 
-    // Handle form submission using JSON API
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setProcessing(true);
-        setErrorMessage(null);
-
-        try {
-            const response = await fetch(route("admin.products.store"), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "",
-                },
-                body: JSON.stringify(data),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            console.log(result); // Log the response for debugging
-
-            if (result.success) {
-                alert("Product added successfully!");
-                reset(); // Reset form
+        post(route("admin.products.store"), {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success(" Product added successfully!", { 
+                    position: "top-center", 
+                    style: { 
+                        fontSize: "16px",
+                        fontWeight: "bold",
+                        background: "#4CAF50",
+                        color: "#fff",
+                        padding: "12px",
+                        borderRadius: "8px",
+                    }
+                });
+                reset();
                 setPreviewImage(null);
-            } else {
-                setErrorMessage("Failed to add product. Please try again.");
-            }
-        } catch (error) {
-            console.error("Error saving product", error);
-            setErrorMessage("An unexpected error occurred.");
-        } finally {
-            setProcessing(false);
-        }
+            },
+            onError: (err) => {
+                toast.error("❌ " + (err.error || "Something went wrong!"), { 
+                    position: "top-center", 
+                    style: { 
+                        fontSize: "16px",
+                        fontWeight: "bold",
+                        background: "#D32F2F",
+                        color: "#fff",
+                        padding: "12px",
+                        borderRadius: "8px",
+                    }
+                });
+            },
+        });
     };
+
+    // Filter products based on search query
+    const filteredProducts = products.data.filter((product) =>
+        product.product_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Products" />
-            <div className="flex flex-col items-center min-h-screen p-6 bg-gray-100 dark:bg-gray-900">
-                {/* Add Product Form */}
+            <Toaster /> {/* Toast notifications renderer */}
+            
+            <div className="flex flex-col items-left min-h-screen p-6 bg-gray-100 dark:bg-gray-900">
                 <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
                     <h2 className="text-xl font-semibold text-center text-gray-900 dark:text-white mb-4">
                         Add Product
                     </h2>
 
-                    {/* Display Error Message */}
-                    {errorMessage && <p className="text-red-500 text-center">{errorMessage}</p>}
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {/* Product Name */}
+                    <form onSubmit={handleSubmit} className="space-y-4" encType="multipart/form-data">
                         <div>
                             <Label htmlFor="product_name">Product Name</Label>
                             <Input
                                 id="product_name"
                                 type="text"
-                                placeholder="Enter name"
                                 value={data.product_name}
                                 onChange={(e) => setData("product_name", e.target.value)}
                                 required
+                                className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
-                        {/* Product Category */}
                         <div>
                             <Label htmlFor="product_category">Category</Label>
                             <select
                                 id="product_category"
                                 value={data.product_category}
                                 onChange={(e) => setData("product_category", e.target.value)}
-                                className="w-full mt-1 border-gray-300 dark:border-gray-600 rounded-md"
                                 required
+                                className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring focus:ring-blue-500"
                             >
                                 <option value="">Select Category</option>
-                                <option value="Electronics">Electronics</option>
-                                <option value="Clothing">Clothing</option>
-                                <option value="Books">Books</option>
+                                <option value="Grilled">Grilled</option>
+                                <option value="Ready2eat">Ready2eat</option>
+                                <option value="Ready2cook">Ready2cook</option>
+                                <option value="Bottled">Bottled</option>
                             </select>
                         </div>
 
-                        {/* Product Price */}
                         <div>
-                            <Label htmlFor="product_price">Price ($)</Label>
+                            <Label htmlFor="product_price">Price (₱)</Label>
                             <Input
                                 id="product_price"
                                 type="number"
-                                placeholder="Enter price"
                                 value={data.product_price}
                                 onChange={(e) => setData("product_price", e.target.value)}
                                 required
                                 min="0"
                                 step="0.01"
+                                className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
-                        {/* Product Quantity */}
                         <div>
                             <Label htmlFor="product_quantity">Quantity</Label>
                             <Input
                                 id="product_quantity"
                                 type="number"
-                                placeholder="Enter quantity"
                                 value={data.product_quantity}
                                 onChange={(e) => setData("product_quantity", e.target.value)}
                                 required
                                 min="1"
+                                className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
-                        {/* Product Image Upload & Preview */}
                         <div>
-                            <Label htmlFor="product_image">Product Image</Label>
+                            <Label htmlFor="product_image">Item Image</Label>
                             <Input
                                 id="product_image"
                                 type="file"
                                 accept="image/*"
                                 onChange={handleImageUpload}
+                                className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             {previewImage && (
-                                <img
-                                    src={previewImage}
-                                    alt="Product Preview"
-                                    className="mt-2 w-full h-40 object-cover rounded-md border"
-                                />
+                                <img src={previewImage} alt="Preview" className="mt-2 w-16 max-h-40 object-cover rounded-md border" />
                             )}
                         </div>
 
-                        {/* Submit Button */}
-                        <Button type="submit" disabled={processing} className="w-full py-2 text-lg font-medium bg-blue-600 hover:bg-blue-700 transition-all">
+                        <Button type="submit" disabled={processing} className="w-full px-4 py-2 mt-4 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500">
                             {processing ? "Saving..." : "Save Product"}
                         </Button>
                     </form>
                 </div>
 
-                {/* Product List with Pagination */}
-                <div className="w-full max-w-3xl bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                {/* Product List */}
+                <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Product List</h2>
 
-                    <table className="w-full border-collapse border border-gray-300 dark:border-gray-700">
-                        <thead>
-                            <tr className="bg-gray-200 dark:bg-gray-700">
-                                <th className="border px-4 py-2">Name</th>
-                                <th className="border px-4 py-2">Category</th>
-                                <th className="border px-4 py-2">Price</th>
-                                <th className="border px-4 py-2">Quantity</th>
-                                <th className="border px-4 py-2">Image</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {products.data.map((product: Product) => (
-                                <tr key={product.id} className="text-center">
-                                    <td className="border px-4 py-2">{product.product_name}</td>
-                                    <td className="border px-4 py-2">{product.product_category}</td>
-                                    <td className="border px-4 py-2">${product.product_price}</td>
-                                    <td className="border px-4 py-2">{product.product_quantity}</td>
-                                    <td className="border px-4 py-2">
-                                        {product.product_image && (
-                                            <img
-                                                src={`/storage/${product.product_image}`}
-                                                alt="Product"
-                                                className="w-16 h-16 object-cover mx-auto rounded"
-                                            />
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-
-                    {/* Pagination Links */}
-                    <div className="flex justify-center gap-2 mt-4">
-                        {products.links.map((link: PaginationLink, index: number) => (
-                            <Link key={index} href={link.url || "#"} className={`px-4 py-2 border rounded ${link.active ? "bg-blue-500 text-white" : ""}`}>
-                                {link.label}
-                            </Link>
-                        ))}
+                    {/* Search Bar */}
+                    <div className="mb-4">
+                        <Input
+                            type="text"
+                            placeholder="Search Product..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                     </div>
-                </div>
+
+                    <div className="w-full overflow-x-auto">
+                        <table className="min-w-[900px] border-collapse border border-gray-300 dark:border-gray-700">
+                            <thead>
+                                <tr className="bg-gray-200 dark:bg-gray-700">
+                                    <th className="border px-4 py-2 min-w-[70px]">ID</th>
+                                    <th className="border px-4 py-2 min-w-[150px]">Name</th>
+                                    <th className="border px-4 py-2 min-w-[100px]">Image</th>
+                                    <th className="border px-4 py-2 min-w-[150px]">Stock Status</th>
+                                    <th className="border px-4 py-2 min-w-[150px]">Price</th>
+                                    <th className="border px-4 py-2 min-w-[150px]">Category</th>
+                                    <th className="border px-4 py-2 min-w-[70px]">Stock</th>
+                                    <th className="border px-4 py-2 min-w-[120px]">Total Value</th>
+                                    <th className="border px-4 py-2 min-w-[200px]">Created at</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredProducts.map((product) => (
+                                    <tr key={product.id} className="text-center">
+                                        <td className="border px-4 py-2">{product.id}</td>
+                                        <td className="border px-4 py-2">{product.product_name}</td>
+                                        <td className="border px-4 py-2">
+                                            {product.product_image && (
+                                                <img src={`/storage/${product.product_image}`} alt="Product" className="w-12 h-8 object-cover mx-auto rounded" />
+                                            )}
+                                        </td>
+                                        <td className="border px-4 py-2">
+                                            <span className={`px-2 py-1 rounded-md ${
+                                                product.product_quantity >= 50 ? "bg-purple-500" :
+                                                product.product_quantity >= 10 ? "bg-green-500" :
+                                                product.product_quantity >= 3 ? "bg-yellow-500" :
+                                                product.product_quantity === 0 ? "bg-red-500" :
+                                                "bg-blue-500"
+                                            } text-white`}>
+                                                {product.product_quantity >= 50 ? "High Stock" :
+                                                product.product_quantity >= 10 ? "In Stock" :
+                                                product.product_quantity >= 3 ? "Low Stock" :
+                                                product.product_quantity === 0 ? "Out of Stock" : "Backorder"}
+                                            </span>
+                                        </td>
+                                        <td className="border px-4 py-2">₱ {product.product_price}</td>
+                                        <td className="border px-4 py-2">{product.product_category}</td>  
+                                        <td className="border px-4 py-2">{product.product_quantity}</td>
+                                        <td className="border px-4 py-2">{product.product_quantity * product.product_price}</td>
+                                        <td className="border px-4 py-2">
+                                            {new Date(product.created_at).toLocaleString("en-US", {
+                                                year: "numeric",
+                                                month: "2-digit",
+                                                day: "2-digit",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                                hour12: true,
+                                            })}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>                             
             </div>
         </AppLayout>
     );

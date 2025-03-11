@@ -8,31 +8,42 @@ use App\Http\Controllers\AdminInventoryController; // Add this line
 use App\Http\Controllers\AdminProductController; // Add this line
 use App\Http\Controllers\StaffInventoryController; // Add this line
 use App\Http\Controllers\StaffProductController; // Add this line
-use App\Http\Controllers\OrderController; // Add this line
+use App\Http\Controllers\StaffOrderController; // Add this line
 
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
 Route::middleware(['admin'])->group(function () {
-    Route::get('admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard'); 
-    Route::get('admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory'); 
-    Route::get('admin/products', [AdminProductController::class, 'index'])->name('admin.products'); 
+    Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard'); 
+    Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory'); 
 
    //products
     Route::get('/admin/products', [AdminProductController::class, 'index'])->name('admin.products');
     Route::post('/admin/products/store', [AdminProductController::class, 'store'])->name('admin.products.store');
     Route::post('/admin/products/uploadTempImage', [AdminProductController::class, 'uploadTempImage'])->name('admin.products.uploadTempImage');
+    Route::get('/api/products', [AdminProductController::class, 'getProducts']); // Real-time to be followed
+    //api for category distribution
+    Route::get('/api/category-data', [AdminDashboardController::class, 'getCategoryData']);
+    //api for sales data
+    Route::get('/api/sales-data', [AdminDashboardController::class, 'getSalesData']);
     
     Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/store', [AdminInventoryController::class, 'store'])->name('admin.inventory.store');
 });
 
 Route::middleware(['staff'])->group(function () {
-    Route::get('staff/pos', [StaffDashboardController::class, 'index'])->name('staff.pos'); 
-    Route::get('staff/inventory', [StaffInventoryController::class, 'index'])->name('staff.inventory'); 
-    Route::get('staff/products', [StaffProductController::class, 'index'])->name('staff.products'); 
+    Route::get('/staff/pos', [StaffDashboardController::class, 'index'])->name('staff.pos'); 
+    Route::get('/staff/inventory', [StaffInventoryController::class, 'index'])->name('staff.inventory'); 
+    Route::get('/staff/products', [StaffProductController::class, 'index'])->name('staff.products'); 
     Route::post('/staff/checkout', [StaffDashboardController::class, 'store'])->name('staff.checkout');
+
+    //orders
+    Route::post('/staff/orders', [StaffOrderController::class, 'store'])->name('staff.orders.store');
+    Route::post('/staff/orders/store', [StaffOrderController::class, 'store'])->name('staff.orders.store');
+    Route::get('/staff/orders', [StaffOrderController::class, 'index'])->name('staff.orders.index');
+    
+ 
 });
 
 

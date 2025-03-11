@@ -10,6 +10,6 @@ class Order extends Model
     use HasFactory;
     
     protected $fillable = [
-        'subtotal', 'tax', 'discount', 'total', 'payment', 'change',
+        'product_id', 'quantity', 'subtotal', 'tax', 'discount', 'total', 'payment', 'change',
     ];
 }
