@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->integer('product_quantity');
             $table->string('product_category');
             $table->string('product_image')->nullable();
+            $table->enum('notification_status', ['unread', 'read'])->default('unread'); // New column
             $table->timestamps();
         });
     }

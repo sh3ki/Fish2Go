@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type BreadcrumbItem } from "@/types";
 import { MinusCircle } from "lucide-react";
 import Modal from "@/components/ui/modal";
-import axios from "axios"; // ✅ Added for real-time product fetching
+import axios from "axios";
 
 type Product = {
     id: number;

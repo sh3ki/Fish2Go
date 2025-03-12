@@ -34,7 +34,7 @@ Route::middleware(['admin'])->group(function () {
 
     //notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
 });
 
 Route::middleware(['staff'])->group(function () {
