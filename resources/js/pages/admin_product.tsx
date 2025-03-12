@@ -229,13 +229,13 @@ export default function AdminProduct({ products }: PageProps) {
                                             <span className={`px-2 py-1 rounded-md ${
                                                 product.product_quantity >= 50 ? "bg-purple-500" :
                                                 product.product_quantity >= 10 ? "bg-green-500" :
-                                                product.product_quantity >= 3 ? "bg-yellow-500" :
+                                                product.product_quantity >= 5 ? "bg-yellow-500" :
                                                 product.product_quantity === 0 ? "bg-red-500" :
                                                 "bg-blue-500"
                                             } text-white`}>
                                                 {product.product_quantity >= 50 ? "High Stock" :
                                                 product.product_quantity >= 10 ? "In Stock" :
-                                                product.product_quantity >= 3 ? "Low Stock" :
+                                                product.product_quantity >= 5 ? "Low Stock" :
                                                 product.product_quantity === 0 ? "Out of Stock" : "Backorder"}
                                             </span>
                                         </td>

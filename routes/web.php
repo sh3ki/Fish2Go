@@ -3,12 +3,13 @@
 use App\Http\Controllers\AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia; // Correct the import
-use App\Http\Controllers\StaffDashboardController; // Add this line
-use App\Http\Controllers\AdminInventoryController; // Add this line
-use App\Http\Controllers\AdminProductController; // Add this line
-use App\Http\Controllers\StaffInventoryController; // Add this line
-use App\Http\Controllers\StaffProductController; // Add this line
-use App\Http\Controllers\StaffOrderController; // Add this line
+use App\Http\Controllers\StaffDashboardController; 
+use App\Http\Controllers\AdminInventoryController; 
+use App\Http\Controllers\AdminProductController; 
+use App\Http\Controllers\StaffInventoryController; 
+use App\Http\Controllers\StaffProductController; 
+use App\Http\Controllers\StaffOrderController; 
+use App\Http\Controllers\NotificationController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -30,6 +31,10 @@ Route::middleware(['admin'])->group(function () {
     
     Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/store', [AdminInventoryController::class, 'store'])->name('admin.inventory.store');
+
+    //notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });
 
 Route::middleware(['staff'])->group(function () {
