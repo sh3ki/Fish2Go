@@ -13,14 +13,14 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_id')->constrained('products')->onDelete('cascade'); // Adds foreign key
-            $table->integer('quantity'); // Add quantity field
+            $table->json('items'); // Store items as JSON
             $table->decimal('subtotal', 10, 2);
             $table->decimal('tax', 10, 2);
             $table->decimal('discount', 10, 2)->default(0);
             $table->decimal('total', 10, 2);
             $table->decimal('payment', 10, 2)->nullable();
             $table->decimal('change', 10, 2)->nullable();
+            $table->string('status')->default('pending');
             $table->timestamps();
         });
     }

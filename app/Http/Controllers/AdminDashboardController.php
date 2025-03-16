@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\DB;
 
-
 class AdminDashboardController extends Controller
 {
     public function index()
@@ -27,11 +26,24 @@ class AdminDashboardController extends Controller
 
     public function getCategoryData()
     {
-        $categoryData = DB::table('orders')
-            ->join('products', 'orders.product_id', '=', 'products.id')
-            ->select('products.product_category as name', DB::raw('SUM(orders.quantity) as value'))
-            ->groupBy('products.product_category')
-            ->get();
+        $orders = DB::table('orders')->select('items')->get();
+        $categoryData = [];
+
+        foreach ($orders as $order) {
+            $items = json_decode($order->items, true);
+            foreach ($items as $item) {
+                $category = $item['category'];
+                $quantity = $item['quantity'];
+                if (!isset($categoryData[$category])) {
+                    $categoryData[$category] = 0;
+                }
+                $categoryData[$category] += $quantity;
+            }
+        }
+
+        $categoryData = array_map(function ($name, $value) {
+            return ['name' => $name, 'value' => $value];
+        }, array_keys($categoryData), $categoryData);
 
         return response()->json($categoryData);
     }
@@ -45,5 +57,11 @@ class AdminDashboardController extends Controller
             ->get();
 
         return response()->json($salesData);
+    }
+
+    public function getTotalSales()
+    {
+        $totalSales = DB::table('orders')->sum('total');
+        return response()->json(['total' => $totalSales]);
     }
 }

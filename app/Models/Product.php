@@ -17,16 +17,5 @@ class Product extends Model {
         'notification_status',
     ];
 
-    public function updateStockAndNotification($quantity) {
-        $this->product_quantity = $quantity;
-        $this->save();
-
-        if ($this->product_quantity < 9 && $this->notification_status !== 'unread') {
-            $this->notification_status = 'unread';
-            $this->save();
-        } elseif ($this->product_quantity >= 9) {
-            $this->notification_status = 'read';
-            $this->save();
-        }
-    }
+  
 }

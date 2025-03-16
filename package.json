@@ -51,6 +51,7 @@
         "laravel-vite-plugin": "^1.0",
         "lucide-react": "^0.475.0",
         "react": "^19.0.0",
+        "react-confirm-alert": "^3.0.6",
         "react-dom": "^19.0.0",
         "react-helmet": "^6.1.0",
         "react-hot-toast": "^2.5.2",
