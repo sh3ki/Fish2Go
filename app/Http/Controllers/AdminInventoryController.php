@@ -30,6 +30,7 @@ class AdminInventoryController extends Controller
             'name' => 'required|string|max:255',
             'quantity' => 'required|integer|min:1',
             'item_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'price' => 'required|numeric|min:0',
         ]);
 
         $imagePath = null;
@@ -37,11 +38,12 @@ class AdminInventoryController extends Controller
             $imagePath = $request->file('item_image')->store('inventory', 'public'); // Store in storage/app/public/inventory
         }
 
-        $inventory = Inventory::create([
-            'name' => $request->name,
-            'quantity' => $request->quantity,
-            'item_image' => $imagePath,
-        ]);
+        $inventory = new Inventory();
+        $inventory->inventory_name = $request->input('name');
+        $inventory->inventory_qty = $request->input('quantity');
+        $inventory->inventory_image = $imagePath;
+        $inventory->inventory_price = $request->input('price');
+        $inventory->save();
 
         // Clear the cache for newest items
         Cache::forget('newest_items');
@@ -53,8 +55,8 @@ class AdminInventoryController extends Controller
     {
         $inventory = Inventory::findOrFail($id);
 
-        if ($inventory->item_image) {
-            Storage::disk('public')->delete($inventory->item_image);
+        if ($inventory->inventory_image) {
+            Storage::disk('public')->delete($inventory->inventory_image);
         }
 
         $inventory->delete();

@@ -5,9 +5,9 @@ import { Bell } from 'lucide-react';
 
 interface Notification {
     id: number;
-    notification_status: 'read' | 'unread';
+    product_notification: 'read' | 'unread';  // ✅ Updated column name
     product_name: string;
-    product_quantity: number;
+    product_qty: number;  // ✅ Updated column name
     created_at: string;  // ✅ Added date & time
 }
 
@@ -23,27 +23,48 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
     const [loading, setLoading] = useState(false);  // ✅ Loading state
 
     const fetchNotifications = () => {
-        setLoading(true);  // ✅ Start loading
+        setLoading(true);
         fetch('/notifications')
             .then((res) => res.json())
             .then((data: Notification[]) => {
                 setNotifications(data);
-                setUnreadCount(data.filter(notification => notification.notification_status === 'unread').length);
-                setLoading(false);  // ✅ Stop loading
+                setUnreadCount(data.length); // ✅ Use the length of the returned notifications
+
+                // ✅ Save only the content messages to localStorage
+                const notificationMessages = data.map(notification => 
+                    `${notification.product_name} has only ${notification.product_qty} left!`
+                );
+                localStorage.setItem('notificationMessages', JSON.stringify(notificationMessages));
+                setLoading(false);
             })
             .catch((error) => {
                 console.error('Error fetching notifications:', error);
-                setLoading(false);  // ✅ Stop loading even if failed
+                setLoading(false);
             });
     };
 
     useEffect(() => {
-        fetchNotifications();
+        // ✅ Load notification messages from localStorage on page load
+        const savedMessages = localStorage.getItem('notificationMessages');
+        if (savedMessages) {
+            const parsedMessages: string[] = JSON.parse(savedMessages);
+            setNotifications(parsedMessages.map((message, index) => ({
+                id: index, // Temporary ID for rendering
+                product_name: message.split(' has only ')[0],
+                product_qty: parseInt(message.split(' has only ')[1].split(' ')[0], 10),
+                product_notification: 'unread',
+                created_at: new Date().toISOString() // Placeholder date
+            })));
+            setUnreadCount(parsedMessages.length);
+        } else {
+            fetchNotifications();
+        }
     }, []);
 
-    const handleBellClick = () => {
+    const handleBellClick = (event: React.MouseEvent) => {
+        event.preventDefault();
         if (!showNotifications) {
-            fetch('/notifications/mark-as-read', {
+            fetch('/notifications/mark-as-read', {  // ✅ Ensure this matches the route in web.php
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -53,13 +74,15 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
             .then((res) => res.json())
             .then((data) => {
                 if (data.status === 'success') {
-                    setNotifications(prevNotifications =>
-                        prevNotifications.map(notification => ({
-                            ...notification,
-                            notification_status: 'read'
-                        }))
-                    );
+                    const updatedNotifications = notifications.map(notification => ({
+                        ...notification,
+                        product_notification: 'read'
+                    }));
+                    setNotifications(updatedNotifications);
                     setUnreadCount(0);
+
+                    // ✅ Clear localStorage since all notifications are marked as read
+                    localStorage.removeItem('notificationMessages');
                 }
             })
             .catch((error) => console.error('Error updating notification status:', error));
@@ -99,7 +122,7 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
                                 <div key={notification.id} className="p-2 border-b last:border-none text-sm flex flex-col gap-1 text-black">
                                     <div className="flex items-center gap-2">
                                         <span className="text-yellow-500 text-lg">⚠️</span>
-                                        {notification.product_name} has only <strong>{notification.product_quantity}</strong> left!
+                                        {notification.product_name} has only <strong>{notification.product_qty}</strong> left!  {/* ✅ Display low stock message */}
                                     </div>
                                     <div className="text-xs text-gray-500">
                                         {new Date(notification.created_at).toLocaleString([], { 
@@ -122,6 +145,5 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
 
             {children}
         </AppLayoutTemplate>
-        
     );
 };

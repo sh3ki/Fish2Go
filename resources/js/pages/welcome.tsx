@@ -8,57 +8,83 @@ export default function Welcome() {
             <Head title="Welcome">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
-                
             </Head>
 
-            <div className="flex min-h-screen flex-col items-center bg-black-100 text-white p-6 lg:justify-center lg:p-8">
-            <h1 className="text-5xl font-bold mb-4 z-1 absolute top-0 left-0 p-4">Fish2Go</h1>
-               {/* Main Content Box */}
-             
-               <div className="flex w-full max-w-2xl bg-green-600 text-white rounded-lg shadow-lg p-8 z-10 ">
-                    {/* Left Side - Welcome Message */}
-                    <div className="flex-1">
-                        <br />
-                        <br />
-                
-
-                    
-                    <nav className="flex items-center justify-center gap-10">
-                        {auth.user ? (
-                            <Link
-                                href={route("dashboard")}
-                                className="rounded-sm border border-gray-300 px-5 py-1.5 text-sm leading-normal text-white hover:border-gray-400"
-                            >
-                                Dashboard
-                            </Link>
-                        ) : (
-                            <>
-                                <Link
-                                    href={route("login")}
-                                    className="rounded-sm border border-gray-300 px-3 py-1.5 text-sm leading-normal text-white hover:border-gray-400"
-                                >
-                                    Log in
-                                </Link>
-                                <Link
-                                    href={route("register")}
-                                    className="rounded-sm border border-gray-300 px-3 py-1.5 text-sm leading-normal text-white hover:border-gray-400"
-                                >
-                                    Register
-                                </Link>
-                            </>
-                        )}
-                    </nav>
-                      <br />
-                      <br />
-                               
-                    </div>
-
-                 
+            <div className="flex min-h-screen flex-col items-center bg-gray-900 text-white p-6 lg:justify-center lg:p-8">
+                <div className="absolute top-3 left-3 p-4 z-1">
+                    <h1
+                        className="text-6xl font-bold mb-4"
+                        style={{
+                            WebkitTextStroke: "1px black", // Solid black border for each letter
+                            color: "white", // Keeps the text filled with white
+                        }}
+                    >
+                        Fish2Go
+                    </h1>
+                    <h2
+                        className="text-3xl font-semibold mb-4"
+                        style={{
+                            WebkitTextStroke: "1px black", // Solid black border for each letter
+                            color: "white", // Keeps the text filled with white
+                        }}
+                    >
+                        Your Healthy Grilled Fish Choice!
+                    </h2>
                 </div>
 
-               
+                {/* Navigation Bar */}
+                <nav className="absolute top-2 right-0 p-4 z-20 mr-3">
+                    <Link
+                        className="rounded-sm border border-blue-500 bg-gray-800 px-4 py-3 text-m text-white hover:border-blue-200 hover:bg-gray-400 transition-all"
+                    >
+                        Home
+                    </Link>
 
-                {/* Video Section */}
+                    <Link
+                        className="rounded-sm border border-blue-500 bg-gray-800 px-4 py-3 text-m text-white hover:border-blue-200 hover:bg-gray-400 transition-all mr-3 ml-8"
+                    >
+                        About Us
+                    </Link>
+                </nav>
+
+                {/* Main Content Box */}
+                <div className="flex max-w-2xl bg-transparent backdrop-blur-[7px] text-white rounded-lg shadow-2xl p-8 z-10 border border-gray-300 relative ">
+                    <div className="flex-1">
+                    <h2
+                        className="text-3xl font-semibold mb-4"
+                        style={{
+                            WebkitTextStroke: "1px black", // Solid black border for each letter
+                            color: "white", // Keeps the text filled with white
+                        }}
+                    >
+                       Welcome!
+                    </h2>
+
+                        {/* Email Field Styled as Log in Button */}
+                        <div className="mb-4">
+                            <input 
+                                type="Log In" 
+                                placeholder="Log In" 
+                                onClick={() => window.location.href = route("login")} 
+                                className="w-full px-4 py-2 text-black bg-gray-300 rounded-md cursor-pointer hover:bg-gray-400 focus:outline-none"
+                                readOnly
+                            />
+                        </div>
+
+                        {/* Password Field Styled as Register Button */}
+                        <div className="mb-4">
+                            <input 
+                                type="Register" 
+                                placeholder="Register" 
+                                onClick={() => window.location.href = route("register")} 
+                                className="w-full px-4 py-2 text-black bg-gray-300 rounded-md cursor-pointer hover:bg-gray-400 focus:outline-none"
+                                readOnly
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Video Background - Kept Untouched */}
                 <div className="fixed inset-0 z-0">
                     <video autoPlay muted loop className="w-full h-full object-cover">
                         <source src="/videos/Fish2Go.mp4" type="video/mp4" />
@@ -71,5 +97,3 @@ export default function Welcome() {
         </>
     );
 }
-
-

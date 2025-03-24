@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,11 +47,22 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
         name: "",
         quantity: "",
         item_image: null as File | null,
+        price: "", // Add price field
     });
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [inventoryList, setInventoryList] = useState(inventory.data);
+    const [newestItemsList, setNewestItemsList] = useState(newestItems);
+
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            const response = await axios.get(route("admin.inventory.index"));
+            setNewestItemsList(response.data.newestItems);
+        }, 5000); // Fetch newest items every 5 seconds
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -62,6 +73,20 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!data.name || !data.price) {
+            toast.error("❌ Item name and price are required.", {
+                position: "top-center",
+                style: {
+                    fontSize: "16px",
+                    fontWeight: "bold",
+                    background: "#D32F2F",
+                    color: "#fff",
+                    padding: "12px",
+                    borderRadius: "8px",
+                },
+            });
+            return;
+        }
         try {
             const response = await axios.post(route("admin.inventory.store"), data, {
                 headers: {
@@ -82,6 +107,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
             });
 
             setInventoryList((prevInventory) => [response.data.inventory, ...prevInventory]);
+            setNewestItemsList((prevItems) => [response.data.inventory, ...prevItems]);
             reset();
             setPreviewImage(null);
         } catch (err) {
@@ -128,7 +154,10 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                                     });
 
                                     setInventoryList((prevInventory) =>
-                                        prevInventory.filter((item) => item.id !== inventoryId)
+                                        prevInventory.filter((item) => item.inventory_id !== inventoryId)
+                                    );
+                                    setNewestItemsList((prevItems) =>
+                                        prevItems.filter((item) => item.inventory_id !== inventoryId)
                                     );
                                 } catch (error) {
                                     const errorMsg =
@@ -195,7 +224,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     const handlePageChange = async (page: number) => {
         try {
             const response = await axios.get(route("admin.inventory.index", { page }));
-            setInventoryList(response.data.inventory.data);
+            setInventoryList(response.data.props.inventory.data);
         } catch (err) {
             toast.error("❌ " + (err.response?.data?.message || "Something went wrong!"), {
                 position: "top-center",
@@ -255,34 +284,38 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                             <tbody>
                                 {filteredInventory.length > 0 ? (
                                     filteredInventory.map((item) => (
-                                        <tr key={item.id} className="text-center">
-                                            <td className="border px-4 py-2">{item.id}</td>
-                                            <td className="border px-4 py-2">{item.name}</td>
+                                        <tr key={item.inventory_id} className="text-center">
+                                            <td className="border px-4 py-2">{item.inventory_id}</td>
+                                            <td className="border px-4 py-2">{item.inventory_name}</td>
                                             <td className="border px-4 py-2">
-                                                {item.item_image && (
-                                                    <img src={`/storage/${item.item_image}`} alt="Item" className="w-12 h-8 object-cover mx-auto rounded" />
+                                                {item.inventory_image && (
+                                                    <img src={`/storage/${item.inventory_image}`} alt="Item" className="w-12 h-8 object-cover mx-auto rounded" />
                                                 )}
                                             </td>
                                             <td className="border px-4 py-2">
                                                 <span className={`px-2 py-1 rounded-md ${
-                                                    item.quantity >= 50 ? "bg-purple-500" :
-                                                    item.quantity >= 10 ? "bg-green-500" :
-                                                    item.quantity >= 3 ? "bg-yellow-500" :
-                                                    item.quantity === 0 ? "bg-red-500" :
+                                                    item.inventory_qty >= 50 ? "bg-purple-500" :
+                                                    item.inventory_qty >= 10 ? "bg-green-500" :
+                                                    item.inventory_qty >= 3 ? "bg-yellow-500" :
+                                                    item.inventory_qty === 0 ? "bg-red-500" :
                                                     "bg-blue-500"
                                                 } text-white`}>
-                                                    {item.quantity >= 50 ? "High Stock" :
-                                                    item.quantity >= 10 ? "In Stock" :
-                                                    item.quantity >= 3 ? "Low Stock" :
-                                                    item.quantity === 0 ? "Out of Stock" : "Backorder"}
+                                                    {item.inventory_qty >= 50 ? "High Stock" :
+                                                    item.inventory_qty >= 10 ? "In Stock" :
+                                                    item.inventory_qty >= 3 ? "Low Stock" :
+                                                    item.inventory_qty === 0 ? "Out of Stock" : "Backorder"}
                                                 </span>
                                             </td>
-                                            <td className="border px-4 py-2">{item.quantity}</td>
-                                            <td className="border px-4 py-2">{new Date(item.created_at).toLocaleString()}</td>
+                                            <td className="border px-4 py-2">{item.inventory_qty}</td>
+                                            <td className="border px-4 py-2">
+                                                {item.created_at
+                                                    ? new Date(item.created_at).toLocaleString()
+                                                    : "Not Available"}
+                                            </td>
                                             <td className="border px-4 py-2 flex justify-center gap-2"> {/* Actions Column */}
                                                 <Button
                                                     className="bg-red-500 text-white px-3 py-1 rounded-md"
-                                                    onClick={() => handleDelete(item.id)}
+                                                    onClick={() => handleDelete(item.inventory_id)} // Ensure correct ID is passed
                                                 >
                                                     Delete
                                                 </Button>
@@ -352,6 +385,20 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                             </div>
 
                             <div>
+                                <Label htmlFor="price">Price</Label>
+                                <Input
+                                    id="price"
+                                    type="number"
+                                    value={data.price}
+                                    onChange={(e) => setData("price", e.target.value)}
+                                    required
+                                    min="0"
+                                    step="0.01"
+                                    className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+
+                            <div>
                                 <Label htmlFor="item_image">Item Image</Label>
                                 <Input
                                     id="item_image"
@@ -391,21 +438,21 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
       </style>
 
                     <div className="grid grid-cols-2 gap-4">
-        {newestItems.length > 0 ? (
-            newestItems.map((item, index) => (
+        {newestItemsList.length > 0 ? (
+            newestItemsList.map((item, index) => (
                 <div key={index} className="relative flex flex-col items-center p-2 bg-gray-100 dark:bg-gray-700 rounded-md">
                     {/* Star Icon in Upper Right */}
                     <div className="absolute top-1 right-1 animate-[heartbeat_2.5s_ease-in-out_infinite]">
   <Star className="text-yellow-500" size={18} />
 </div>
            
-                    {item.item_image && (
-                        <img src={`/storage/${item.item_image}`} 
-                            alt={item.name} 
+                    {item.inventory_image && (
+                        <img src={`/storage/${item.inventory_image}`} 
+                            alt={item.inventory_name} 
                             className="w-10 h-10 object-cover rounded-md mb-2" 
                         />
                     )}
-                    <span className="text-gray-900 dark:text-white text-sm text-center">{item.name}</span>
+                    <span className="text-gray-900 dark:text-white text-sm text-center">{item.inventory_name}</span>
                 </div>
             ))
         ) : (

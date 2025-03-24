@@ -21,11 +21,11 @@ const breadcrumbs: BreadcrumbItem[] = [
   
 // Define TypeScript interfaces
 interface Product {
-    id: number;
+    product_id: number;
     product_name: string;
-    product_category: string;
+    category_id: string;
     product_price: number;
-    product_quantity: number;
+    product_qty: number;
     product_image: string | null;
     created_at: string;
 }
@@ -43,13 +43,19 @@ interface PageProps {
     newestProducts: Product[]; // Add newestProducts to PageProps
 }
 
+interface Category {
+    category_id: number;
+    category_name: string;
+}
+
+
 export default function AdminProduct({ products, newestProducts }: PageProps) {
     const { flash } = usePage<PageProps>().props; // Get flash messages from Inertia
     const { data, setData, reset, post, processing, errors } = useForm({
         product_name: "",
-        product_category: "",
-        product_price: "",
-        product_quantity: "",
+        category_id: "",
+        product_price: 0,
+        product_qty: 0,
         product_image: null as File | null,
     });
 
@@ -62,10 +68,24 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
     const [lastPage, setLastPage] = useState(products.last_page); // Add state for last page
     const addProductRef = useRef<HTMLDivElement>(null); // Add ref for Add Product section
     const [newestItems, setNewestItems] = useState<Product[]>(newestProducts); // Add state for newest items
+    const [categories, setCategories] = useState<Category[]>([]);
 
     useEffect(() => {
         setNewestItems(newestProducts);
     }, [newestProducts]);
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await axios.get('/admin/categories'); // ✅ Route to fetch categories
+                setCategories(response.data);
+            } catch (error) {
+                toast.error("Failed to load categories");
+            }
+        };
+        fetchCategories();
+    }, []);
+
 
     const scrollToAddProduct = () => {
         addProductRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -83,20 +103,21 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
         try {
             const formData = new FormData();
             formData.append('product_name', data.product_name);
-            formData.append('product_category', data.product_category);
+            formData.append('category_id', data.category_id);
             formData.append('product_price', data.product_price);
-            formData.append('product_quantity', data.product_quantity);
+            formData.append('product_qty', data.product_qty);
             if (data.product_image) {
                 formData.append('product_image', data.product_image);
             }
-
+    
             const response = await axios.post(route("admin.products.store"), formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
             });
-
+    
             const newProduct = response.data.product;
+    
             toast.success("Product added successfully!", { 
                 position: "top-center", 
                 style: { 
@@ -108,12 +129,13 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                     borderRadius: "8px",
                 }
             });
+    
             reset();
             setPreviewImage(null);
-            // Ensure newProduct is correctly accessed
-            if (newProduct) {
-                setProductList((prevProducts) => [newProduct, ...prevProducts]);
-            }
+    
+            // ✅ Add the new product to the table instantly without refreshing
+            setProductList((prevProducts) => [newProduct, ...prevProducts]);
+    
         } catch (err) {
             toast.error("❌ " + (err.response?.data?.error || "Something went wrong!"), { 
                 position: "top-center", 
@@ -128,6 +150,7 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
             });
         }
     };
+    
 
     const handleDelete = async (productId: number) => {
         confirmAlert({
@@ -158,7 +181,7 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                                     });
     
                                     setProductList((prevProducts) =>
-                                        prevProducts.filter((product) => product.id !== productId)
+                                        prevProducts.filter((product) => product.product_id !== productId)
                                     );
                                 } catch (error) {
                                     const errorMsg =
@@ -215,9 +238,9 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
         setSelectedProduct(product);
         setData({
             product_name: product.product_name,
-            product_category: product.product_category,
+            category_id: product.category_id,
             product_price: product.product_price,
-            product_quantity: product.product_quantity,
+            product_qty: product.product_qty,
             product_image: null,
         });
         setIsEditModalOpen(true);
@@ -226,6 +249,8 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
     const fetchProducts = async (page: number) => {
         try {
             const response = await axios.get(route("admin.products.index", { page }));
+            
+            // ✅ Ensure category_name and created_at are included
             setProductList(response.data.data);
             setCurrentPage(response.data.current_page);
             setLastPage(response.data.last_page);
@@ -243,6 +268,7 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
             });
         }
     };
+    
 
     const handlePreviousPage = () => {
         if (currentPage > 1) {
@@ -305,8 +331,8 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                             </thead>
                             <tbody>
                                 {filteredProducts.map((product) => (
-                                    <tr key={product.id} className="text-center">
-                                        <td className="border px-4 py-2">{product.id}</td>
+                                    <tr key={product.product_id} className="text-center">
+                                        <td className="border px-4 py-2">{product.product_id}</td>
                                         <td className="border px-4 py-2">{product.product_name}</td>
                                         <td className="border px-4 py-2">
                                             {product.product_image && (
@@ -315,22 +341,22 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                                         </td>
                                         <td className="border px-4 py-2">
                                             <span className={`px-2 py-1 rounded-md ${
-                                                product.product_quantity >= 50 ? "bg-purple-500" :
-                                                product.product_quantity >= 10 ? "bg-green-500" :
-                                                product.product_quantity >= 5 ? "bg-yellow-500" :
-                                                product.product_quantity === 0 ? "bg-red-500" :
+                                                product.product_qty >= 50 ? "bg-purple-500" :
+                                                product.product_qty >= 10 ? "bg-green-500" :
+                                                product.product_qty >= 5 ? "bg-yellow-500" :
+                                                product.product_qty === 0 ? "bg-red-500" :
                                                 "bg-blue-500"
                                             } text-white`}>
-                                                {product.product_quantity >= 50 ? "High Stock" :
-                                                product.product_quantity >= 10 ? "In Stock" :
-                                                product.product_quantity >= 5 ? "Low Stock" :
-                                                product.product_quantity === 0 ? "Out of Stock" : "Backorder"}
+                                                {product.product_qty >= 50 ? "High Stock" :
+                                                product.product_qty >= 10 ? "In Stock" :
+                                                product.product_qty >= 5 ? "Low Stock" :
+                                                product.product_qty === 0 ? "Out of Stock" : "Backorder"}
                                             </span>
                                         </td>
                                         <td className="border px-4 py-2">₱ {product.product_price}</td>
-                                        <td className="border px-4 py-2">{product.product_category}</td>  
-                                        <td className="border px-4 py-2">{product.product_quantity}</td>
-                                        <td className="border px-4 py-2">{product.product_quantity * product.product_price}</td>
+                                        <td className="border px-4 py-2">{product.category_name}</td>
+                                        <td className="border px-4 py-2">{product.product_qty}</td>
+                                        <td className="border px-4 py-2">{product.product_qty * product.product_price}</td>
                                         <td className="border px-4 py-2">
                                             {new Date(product.created_at).toLocaleString("en-US", {
                                                 year: "numeric",
@@ -350,7 +376,7 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                                             </Button>
                                             <Button
                                                 className="bg-red-500 text-white px-3 py-1 rounded-md"
-                                                onClick={() => handleDelete(product.id)}
+                                                onClick={() => handleDelete(product.product_id)}
                                             >
                                                 Delete
                                             </Button>
@@ -400,21 +426,25 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                             </div>
 
                             <div>
-                                <Label htmlFor="product_category">Category</Label>
+                                <Label htmlFor="category_id">Category</Label>
                                 <select
-                                    id="product_category"
-                                    value={data.product_category}
-                                    onChange={(e) => setData("product_category", e.target.value)}
+                                    id="category_id"
+                                    value={data.category_id}
+                                    onChange={(e) => setData("category_id", parseInt(e.target.value))} // ✅ Convert to number
                                     required
-                                    className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring focus:ring-blue-500"
+                                    className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md 
+                                            bg-white dark:bg-gray-800 text-gray-900 dark:text-white 
+                                            focus:outline-none focus:ring focus:ring-blue-500"
                                 >
                                     <option value="">Select Category</option>
-                                    <option value="Grilled">Grilled</option>
-                                    <option value="Ready2eat">Ready2eat</option>
-                                    <option value="Ready2cook">Ready2cook</option>
-                                    <option value="Bottled">Bottled</option>
+                                    {categories.map((category) => (
+                                        <option key={category.category_id} value={category.category_id}>
+                                            {category.category_name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
+
 
                             <div>
                                 <Label htmlFor="product_price">Price (₱)</Label>
@@ -431,12 +461,12 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                             </div>
 
                             <div>
-                                <Label htmlFor="product_quantity">Quantity</Label>
+                                <Label htmlFor="product_qty">Quantity</Label>
                                 <Input
-                                    id="product_quantity"
+                                    id="product_qty"
                                     type="number"
-                                    value={data.product_quantity}
-                                    onChange={(e) => setData("product_quantity", e.target.value)}
+                                    value={data.product_qty}
+                                    onChange={(e) => setData("product_qty", e.target.value)}
                                     required
                                     min="1"
                                     className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"

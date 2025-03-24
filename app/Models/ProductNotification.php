@@ -8,7 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class ProductNotification extends Model {
     use HasFactory;
 
-    protected $fillable = ['product_id', 'message', 'status'];
+    protected $fillable = [
+        'product_id', 
+        'message', 
+        'status'
+    ];
 
     public function product() {
         return $this->belongsTo(Product::class, 'product_id');

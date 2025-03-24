@@ -1,43 +1,32 @@
 <?php
 
 namespace App\Http\Controllers;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use App\Models\Product;
 
 class NotificationController extends Controller {
     public function index() {
-        $lowStockProducts = Product::where('product_quantity', '<', 10)
-        ->select('id', 'product_name', 'product_quantity', 'notification_status')
-        ->orderBy('id', 'desc')
-        ->get()
-        ->map(function ($product) {
-            // Check if a timestamp already exists in the cache
-            $cacheKey = "low_stock_timestamp_{$product->id}";
-            if (!Cache::has($cacheKey)) {
-                // Store the current timestamp in the cache (first time it drops below 10)
-                Cache::put($cacheKey, now(), 86400*7); // Store for 1 day (adjust as needed)
-            }
-            return [
-                'id' => $product->id,
-                'product_name' => $product->product_name,
-                'product_quantity' => $product->product_quantity,
-                'notification_status' => $product->notification_status,
-                'created_at' => Cache::get($cacheKey), // Retrieve stored timestamp
-            ];
-        });
-
-        
-    return response()->json($lowStockProducts);
+        try {
+            $notifications = Product::where('product_notification', 'unread')
+                ->where('product_qty', '<', 10)  // ✅ Filter products with low stock
+                ->select('product_id', 'product_name', 'product_image', 'product_price', 'product_qty', 'product_notification', 'created_at')
+                ->get();
+            return response()->json($notifications);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching notifications: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch notifications'], 500);
+        }
     }
 
     public function markAsRead() {
         // Update all unread notifications to read
-        $updatedRows = Product::where('notification_status', 'unread')->update(['notification_status' => 'read']);
+        $updatedRows = Product::where('product_notification', 'unread')
+            ->where('product_qty', '<', 10)  // ✅ Filter products with low stock
+            ->update(['product_notification' => 'read']);
     
         // Fetch updated notifications from the database
-        $updatedNotifications = Product::where('product_quantity', '<', 9)
-            ->select('id', 'product_name', 'product_quantity', 'notification_status')
+        $updatedNotifications = Product::where('product_qty', '<', 10)
+            ->select('product_id', 'product_name', 'product_image', 'product_price', 'product_qty', 'product_notification')
             ->get();
     
         // Debug: Check if notifications actually got updated

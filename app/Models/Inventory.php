@@ -11,5 +11,18 @@ class Inventory extends Model
 
     protected $table = 'inventory';
 
-    protected $fillable = ['name', 'quantity', 'item_image'];
+    protected $primaryKey = 'inventory_id';
+
+    public $incrementing = true;
+
+    protected $keyType = 'int';
+
+    protected $fillable = [
+        'inventory_name',
+        'inventory_qty',
+        'inventory_image',
+        'inventory_price',
+    ];
+
+    public $timestamps = true;
 }

@@ -15,14 +15,14 @@ class AdminSalesController extends Controller
 
     public function getAllOrders(Request $request)
     {
-        $date = $request->input('date');
+        $date = $request->input('date', now()->toDateString()); // Default to today's date if not provided
         $orders = DB::table('orders')
-            ->whereDate('created_at', $date)
+            ->whereRaw('created_at::date = ?', [$date]) // Use PostgreSQL-specific date casting
             ->paginate(10);
 
-        foreach ($orders as $order) {
-            $order->items = json_decode($order->items, true);
-           
+        // Debug log to verify query results
+        if ($orders->isEmpty()) {
+            \Log::info("No orders found for date: $date");
         }
 
         return response()->json($orders);
