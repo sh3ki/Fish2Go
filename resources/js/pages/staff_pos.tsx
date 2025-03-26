@@ -305,11 +305,11 @@ export default function POS() {
                     </div>
                     
                     {/* Payment Method Buttons */}
-                    <div className="grid grid-cols-4 gap-2 mb-3">
+                    <div className="p-0 grid grid-cols-4 gap-1 mb-1">
                         {["CASH", "GCASH", "GRABF", "FOODP"].map((method) => (
                             <Button 
                                 key={method} 
-                                className={`${paymentMethod === method ? 'bg-green-600' : 'bg-gray-600'} p-2 text-sm`}
+                                className={`${paymentMethod === method ? 'bg-green-600' : 'bg-gray-600'} p-0 text-xs font-bold`}
                                 onClick={() => setActivePayment(method)}
                             >
                                 {method}
@@ -318,121 +318,121 @@ export default function POS() {
                     </div>
                     
                     {/* Keypad with Utility Buttons */}
-                    <div onMouseDown={(e) => e.preventDefault()} className="grid grid-cols-5 gap-2">
+                    <div onMouseDown={(e) => e.preventDefault()} className="grid grid-cols-5 gap-1">
                         {/* Row 1 */}
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('1')}
                         >
                             1
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('2')}
                         >
                             2
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('3')}
                         >
                             3
                         </Button>
                         <Button 
-                            className="bg-red-500" 
+                            className="bg-red-500 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('backspace')}
                         >
                             ⌫
                         </Button>
-                        <Button className="bg-blue-500">Tax</Button>
+                        <Button className="bg-blue-500 text-sm p-0 h-8">Tax</Button>
                         
                         {/* Row 2 */}
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('4')}
                         >
                             4
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('5')}
                         >
                             5
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('6')}
                         >
                             6
                         </Button>
                         <Button 
-                            className="bg-gray-500" 
+                            className="bg-gray-500 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('clear')}
                         >
                             CLR
                         </Button>
-                        <Button className="bg-yellow-500">Discount</Button>
+                        <Button className="bg-yellow-500 text-sm p-0 h-8">Disc</Button>
                         
                         {/* Row 3 */}
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('7')}
                         >
                             7
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('8')}
                         >
                             8
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('9')}
                         >
                             9
                         </Button>
-                        <Button className="bg-orange-500">Hold</Button>
-                        <Button className="bg-red-500">Void</Button>
+                        <Button className="bg-orange-500 text-sm p-0 h-8">Hold</Button>
+                        <Button className="bg-red-500 text-sm p-0 h-8">Void</Button>
                         
                         {/* Row 4-5 with Open spanning 2 rows */}
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('00')}
                         >
                             00
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('0')}
                         >
                             0
                         </Button>
                         <Button 
-                            className="bg-gray-600" 
+                            className="bg-gray-600 text-sm p-0 h-8" 
                             disabled={!focusedInputType}
                             onClick={() => handleKeypadInput('.')}
                         >
                             .
                         </Button>
-                        <Button className="bg-green-500 col                          -span-2">Open</Button>
+                        <Button className="bg-green-500 col-span-2 text-sm p-0 h-8">Open</Button>
                         
                         {/* Checkout button spanning all 5 columns */}
                         <Button 
-                            className="col-span-5 bg-green-600 text-lg p-3 mt-2" 
+                            className="col-span-5 bg-green-600 text-sm p-2 mt-1" 
                             onClick={() => alert("Checkout Modal")}
                             disabled={selectedItems.length === 0 || (paymentMethod === 'CASH' && (!cash || parseFloat(cash) < total))}
                         >
