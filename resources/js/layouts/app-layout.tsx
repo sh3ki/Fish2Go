@@ -5,10 +5,11 @@ import { Bell } from 'lucide-react';
 
 interface Notification {
     id: number;
-    product_notification: 'read' | 'unread';  // ✅ Updated column name
+    product_notification: 'read' | 'unread';
     product_name: string;
-    product_qty: number;  // ✅ Updated column name
-    created_at: string;  // ✅ Added date & time
+    product_qty: number;
+    created_at: string;
+    notification_count?: number; // added optional field
 }
 
 interface AppLayoutProps {
@@ -20,7 +21,7 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
-    const [loading, setLoading] = useState(false);  // ✅ Loading state
+    const [loading, setLoading] = useState(false);
 
     const fetchNotifications = () => {
         setLoading(true);
@@ -28,43 +29,22 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
             .then((res) => res.json())
             .then((data: Notification[]) => {
                 setNotifications(data);
-                setUnreadCount(data.length); // ✅ Use the length of the returned notifications
-
-                // ✅ Save only the content messages to localStorage
-                const notificationMessages = data.map(notification => 
-                    `${notification.product_name} has only ${notification.product_qty} left!`
-                );
-                localStorage.setItem('notificationMessages', JSON.stringify(notificationMessages));
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error('Error fetching notifications:', error);
+                // Count only notifications that are 'unread' (count = 1 for each unread)
+                const unreadCount = data.filter(notification => notification.product_notification === 'unread').length;
+                setUnreadCount(unreadCount);
                 setLoading(false);
             });
     };
 
     useEffect(() => {
-        // ✅ Load notification messages from localStorage on page load
-        const savedMessages = localStorage.getItem('notificationMessages');
-        if (savedMessages) {
-            const parsedMessages: string[] = JSON.parse(savedMessages);
-            setNotifications(parsedMessages.map((message, index) => ({
-                id: index, // Temporary ID for rendering
-                product_name: message.split(' has only ')[0],
-                product_qty: parseInt(message.split(' has only ')[1].split(' ')[0], 10),
-                product_notification: 'unread',
-                created_at: new Date().toISOString() // Placeholder date
-            })));
-            setUnreadCount(parsedMessages.length);
-        } else {
-            fetchNotifications();
-        }
+        // Always fetch fresh notifications from the API.
+        fetchNotifications();
     }, []);
 
     const handleBellClick = (event: React.MouseEvent) => {
         event.preventDefault();
         if (!showNotifications) {
-            fetch('/notifications/mark-as-read', {  // ✅ Ensure this matches the route in web.php
+            fetch('/notifications/mark-as-read', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -74,20 +54,17 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
             .then((res) => res.json())
             .then((data) => {
                 if (data.status === 'success') {
+                    // Update local notifications and clear unread count
                     const updatedNotifications = notifications.map(notification => ({
                         ...notification,
                         product_notification: 'read'
                     }));
                     setNotifications(updatedNotifications);
                     setUnreadCount(0);
-
-                    // ✅ Clear localStorage since all notifications are marked as read
-                    localStorage.removeItem('notificationMessages');
                 }
             })
             .catch((error) => console.error('Error updating notification status:', error));
         }
-
         setShowNotifications(!showNotifications);
     };
 
@@ -114,28 +91,30 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
                         <span className="font-bold text-black">Notifications</span>
                     </div>
 
-                    <div className="max-h-60 overflow-y-auto">  {/* ✅ Add scroll */}
-                        {loading ? (  // ✅ Show loading state
+                    <div className="max-h-60 overflow-y-auto">
+                        {loading ? (
                             <div className="p-2 text-sm text-gray-500">Loading notifications...</div>
                         ) : notifications.length > 0 ? (
-                            notifications.map((notification) => (
-                                <div key={notification.id} className="p-2 border-b last:border-none text-sm flex flex-col gap-1 text-black">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-yellow-500 text-lg">⚠️</span>
-                                        {notification.product_name} has only <strong>{notification.product_qty}</strong> left!  {/* ✅ Display low stock message */}
+                            // Sort notifications so the most recent appear first.
+                            [...notifications].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                .map((notification) => (
+                                    <div key={notification.id} className="p-2 border-b last:border-none text-sm flex flex-col gap-1 text-black">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-yellow-500 text-lg">⚠️</span>
+                                            {notification.product_name} has only <strong>{notification.product_qty}</strong> left!
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            {new Date(notification.created_at).toLocaleString([], { 
+                                                year: 'numeric', 
+                                                month: '2-digit', 
+                                                day: '2-digit', 
+                                                hour: '2-digit', 
+                                                minute: '2-digit', 
+                                                hour12: true
+                                            })}
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-gray-500">
-                                        {new Date(notification.created_at).toLocaleString([], { 
-                                            year: 'numeric', 
-                                            month: '2-digit', 
-                                            day: '2-digit', 
-                                            hour: '2-digit', 
-                                            minute: '2-digit', 
-                                            hour12: true  // ✅ Show AM/PM format
-                                        })}
-                                    </div>
-                                </div>
-                            ))
+                                ))
                         ) : (
                             <div className="p-2 text-sm text-gray-500">No notifications</div>
                         )}

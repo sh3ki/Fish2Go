@@ -25,6 +25,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const page = usePage();
     const { auth } = page.props as unknown as { auth: { user: { avatar: string; name: string; } } };
+    const currentUrl = page.url; // new: used to highlight active page
     const getInitials = useInitials();
 
     const handleLogout = () => {
@@ -61,7 +62,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
     return (
         <div className="flex min-h-screen flex-col">
             {/* Header Section */}
-            <header className={cn("border-b p-4 flex items-center justify-between shadow-md", "bg-sidebar dark:bg-dark-sidebar")}> 
+            <header className={cn("border-b p-1 flex items-center justify-between shadow-sm", "bg-sidebar dark:bg-dark-sidebar")}> 
                 {/* Logo */}
                 <div className="flex items-center space-x-2">
                     <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-md">
@@ -72,47 +73,61 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                     </div>
                 </div>
             
-                <h1 className="text-xl font-semibold flex-1 text-center text-black dark:text-white">
+                <h1 className="text-base font-semibold flex-1 text-center text-black dark:text-white">
                     {page.url === '/staff/cook' ? 'Cooks' :
                      page.url === '/staff/transactions' ? 'Transactions' :
                      page.url === '/staff/expenses' ? 'Expenses' :
                      page.url === '/staff/products' ? 'Products' :
-                     page.url === '/staff/inventory' ? 'Inventory' :
-                     page.url === '/staff/delivery' ? 'Delivery' : 'Point of Sale'}
+                     page.url === '/staff/inventory' ? 'Inventories' :
+                     page.url === '/staff/delivery' ? 'Deliveries' : 'Point of Sales'}
                 </h1>
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="size-10 rounded-full p-1">
-                            <Avatar className="size-8 overflow-hidden rounded-full">
+                        <Button variant="ghost" className="size-8 rounded-full p-1">
+                            <Avatar className="size-6 overflow-hidden rounded-full">
                                 <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
-                                <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                                <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white text-xs">
                                     {getInitials(auth.user.name)}
                                 </AvatarFallback>
                             </Avatar>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-sidebar dark:bg-dark-sidebar text-white" align="end">                      
-                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.pos'))}>
-                            <HandCoins  size={18} /> POS
+                    <DropdownMenuContent className="w-40 bg-sidebar dark:bg-dark-sidebar text-white text-sm" align="end">                      
+                        <button 
+                            className={`w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700 ${currentUrl === '/staff/pos' ? 'bg-gray-800' : ''}`} 
+                            onClick={() => router.get(route('staff.pos'))}>
+                            <HandCoins size={18} /> POS
                         </button>
-                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.cook'))}>
-                            <CookingPot  size={18} /> Cook
+                        <button 
+                            className={`w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700 ${currentUrl === '/staff/cook' ? 'bg-gray-800' : ''}`} 
+                            onClick={() => router.get(route('staff.cook'))}>
+                            <CookingPot size={18} /> Cook
                         </button>
-                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.expenses'))}>
-                            <PhilippinePeso  size={18} /> Expenses
+                        <button 
+                            className={`w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700 ${currentUrl === '/staff/expenses' ? 'bg-gray-800' : ''}`} 
+                            onClick={() => router.get(route('staff.expenses'))}>
+                            <PhilippinePeso size={18} /> Expenses
                         </button>
-                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.products'))}>
+                        <button 
+                            className={`w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700 ${currentUrl === '/staff/products' ? 'bg-gray-800' : ''}`} 
+                            onClick={() => router.get(route('staff.products'))}>
                             <ShoppingCart size={18} /> Products
                         </button>
-                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.inventory'))}>
+                        <button 
+                            className={`w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700 ${currentUrl === '/staff/inventory' ? 'bg-gray-800' : ''}`} 
+                            onClick={() => router.get(route('staff.inventory'))}>
                             <Folder size={18} /> Inventory
                         </button>
-                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.transactions'))}>
+                        <button 
+                            className={`w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700 ${currentUrl === '/staff/transactions' ? 'bg-gray-800' : ''}`} 
+                            onClick={() => router.get(route('staff.transactions'))}>
                             <CreditCard size={18} /> Transactions
                         </button>
-                        <button className="w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700" onClick={() => router.get(route('staff.delivery'))}>
-                            <Truck  size={18} /> Delivery
+                        <button 
+                            className={`w-full text-left p-2 flex items-center gap-2 hover:bg-gray-700 ${currentUrl === '/staff/delivery' ? 'bg-gray-800' : ''}`} 
+                            onClick={() => router.get(route('staff.delivery'))}>
+                            <Truck size={18} /> Delivery
                         </button>
 
                         {/* 🔥 Messages with Unread Count */}
@@ -139,7 +154,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 p-4">
+            <main className="flex-1">
                 {breadcrumbs && (
                     <nav>
                         <ul className="flex space-x-2">
