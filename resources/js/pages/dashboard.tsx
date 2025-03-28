@@ -76,7 +76,6 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
   const [categoryData, setCategoryData] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [totalSales, setTotalSales] = useState(0);
-  const [userLogs, setUserLogs] = useState([]);
   const [productSalesData, setProductSalesData] = useState([]);
 
   useEffect(() => {
@@ -102,15 +101,38 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
       .catch((error) => console.error("Error fetching total sales data!", error));
 
     axios
-      .get("/userlogs")
-      .then((response) => setUserLogs(response.data))
-      .catch((error) => console.error("Error fetching user logs!", error));
-
-    axios
       .get("/api/product-sales-data")
       .then((response) => setProductSalesData(response.data))
       .catch((error) => console.error("Error fetching product sales data!", error));
   }, []);
+
+  // Function to extract data from staff users
+  const extractStaffData = () => {
+    return staffUsers.map((user) => ({
+      name: user.name,
+      email: user.email,
+      loggedIn: user.logged_in_at ? new Date(user.logged_in_at).toLocaleString() : "N/A",
+      loggedOut: user.logged_out_at ? new Date(user.logged_out_at).toLocaleString() : "N/A",
+      status:
+        user.status ||
+        (user.logged_out_at
+          ? "Logged Out"
+          : user.logged_in_at
+          ? "Logged In"
+          : "Never Logged In"),
+      dateCreated: new Date(user.created_at).toLocaleString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }),
+    }));
+  };
+
+  // Get formatted staff data
+  const staffData = extractStaffData();
 
   const productSalesOptions = {
     chart: {
@@ -160,9 +182,7 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Dashboard" />
       <div className="flex flex-col gap-4 rounded-xl p-4">
-        
         {/* Overview Cards */}
-        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { title: "Total Sales", value: `₱ ${totalSales}`, icon: LayoutGrid },
@@ -170,8 +190,8 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
             { title: "Total Inventory", value: `${totalInventory} Inventory/s`, icon: ClipboardList },
             { title: "Staff Users", value: `${staffUsers.length} User/s`, icon: Users },
           ].map(({ title, value, icon: Icon }, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="p-4 bg-gray-300 dark:bg-gray-800 rounded-xl text-black dark:text-white flex flex-col"
             >
               <h3 className="text-lg font-semibold flex items-center space-x-2">
@@ -185,62 +205,47 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
 
         {/* Staff Users Table */}
         <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
-        <div className="p-4 bg-gray-300 dark:bg-gray-800 rounded-xl w-full overflow-x-auto">
-          <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
-            <Users className="w-5 h-5 text-purple-900 dark:text-purple-500" />
-            <span className="text-black dark:text-white">Staff Users</span>
-          </h3>
-          <table className="w-full mt-1 min-w-[600px]">
-            <thead>
-              <tr className="text-left text-black dark:text-white bg-gray-300 dark:bg-gray-800">
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Logged In</th>
-                <th className="px-4 py-2">Logged Out</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Date Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {userLogs.map((userLog, index) => (
-                <tr key={index} className="text-black dark:text-white border-b border-gray-600">
-                  <td className="px-4 py-2">{userLog.name}</td>
-                  <td className="px-4 py-2">{userLog.logged_in_at ? new Date(userLog.logged_in_at).toLocaleString() : 'N/A'}</td>
-                  <td className="px-4 py-2">{userLog.logged_out_at ? new Date(userLog.logged_out_at).toLocaleString() : 'N/A'}</td>
-                  <td className="px-4 py-2">{userLog.logged_out_at ? 'Logged Out' : 'Logged In'}</td>
-                  <td className="px-4 py-2">
-                    {new Date(userLog.created_at).toLocaleString("en-US", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </td>
+          <div className="p-4 bg-gray-300 dark:bg-gray-800 rounded-xl w-full overflow-x-auto">
+            <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+              <Users className="w-5 h-5 text-purple-900 dark:text-purple-500" />
+              <span className="text-black dark:text-white">Staff Users</span>
+            </h3>
+            <table className="w-full mt-1 min-w-[600px]">
+              <thead>
+                <tr className="text-left text-black dark:text-white bg-gray-300 dark:bg-gray-800">
+                  <th className="px-4 py-2">Name</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Date Created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {staffData.map((staff, index) => (
+                  <tr key={index} className="text-black dark:text-white border-b border-gray-600">
+                    <td className="px-4 py-2">{staff.name}</td>
+                    <td className="px-4 py-2">{staff.email}</td>
+                    <td className="px-4 py-2">{staff.status}</td>
+                    <td className="px-4 py-2">{staff.dateCreated}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          
           {/* Sales Overview Chart (Takes Full Right Side) */}
           <div className="lg:col-span-4 bg-gray-300 dark:bg-gray-800 p-4 rounded-xl">
             <SalesOverviewChart salesData={salesData} />
           </div>
-
         </div>
 
-       
-
-          {/* Product Sales Bar Chart */}
-          <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
+        {/* Product Sales Bar Chart */}
+        <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
           <div className="lg:col-span-4 bg-gray-300 dark:bg-gray-800 p-4 rounded-xl">
             <h3 className="text-lg font-semibold text-black dark:text-white mb-4">
-              Product Sales 
+              Product Sales
             </h3>
             <div className="overflow-x-auto">
               <Chart
@@ -252,7 +257,7 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
               />
             </div>
           </div>
-      </div>
+        </div>
       </div>
     </AppLayout>
   );
