@@ -15,11 +15,11 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
-        host: '0.0.0.0', 
+        host: '192.168.1.10', 
         port: 5173,
         strictPort: true,
         hmr: {
-            host: 'localhost',
+            host: '192.168.1.10',
         },
     },
     esbuild: {

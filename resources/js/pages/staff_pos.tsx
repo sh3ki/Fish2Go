@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Head, usePage } from "@inertiajs/react";
 import StaffLayout from "@/components/staff/StaffLayout";
 import { type BreadcrumbItem } from "@/types";
@@ -17,9 +17,63 @@ export default function POS() {
     const [paymentMethod, setPaymentMethod] = useState("CASH");
     const [discount, setDiscount] = useState(0);
     const [editableQty, setEditableQty] = useState(null); // Add this for editable quantity
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [showFullScreenPrompt, setShowFullScreenPrompt] = useState(true);
     
     const cashInputRef = useRef(null);
     
+    // Full-screen functionality
+    const toggleFullScreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().then(() => {
+                setIsFullScreen(true);
+                setShowFullScreenPrompt(false);
+                // Store in localStorage that user has entered full-screen mode
+                localStorage.setItem('staffFullScreenMode', 'true');
+            }).catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        }
+    };
+    
+    // Check if user previously entered full-screen mode
+    useEffect(() => {
+        const wasInFullScreen = localStorage.getItem('staffFullScreenMode') === 'true';
+        if (wasInFullScreen) {
+            setShowFullScreenPrompt(false);
+        }
+        
+        // Add event listener for any user interaction to trigger full-screen
+        const handleUserInteraction = () => {
+            if (!document.fullscreenElement) {
+                toggleFullScreen();
+            }
+        };
+        
+        // Only add the event listeners if not already in full-screen
+        if (!document.fullscreenElement) {
+            window.addEventListener('click', handleUserInteraction, { once: true });
+            window.addEventListener('keydown', handleUserInteraction, { once: true });
+        }
+        
+        // Monitor full-screen changes
+        const handleFullscreenChange = () => {
+            setIsFullScreen(!!document.fullscreenElement);
+            if (!document.fullscreenElement) {
+                // If user exits full-screen mode, show prompt again
+                setShowFullScreenPrompt(true);
+            }
+        };
+        
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        
+        return () => {
+            window.removeEventListener('click', handleUserInteraction);
+            window.removeEventListener('keydown', handleUserInteraction);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, []);
+
     const addToOrder = (product) => {
         setSelectedItems((prev) => {
             const existing = prev.find((item) => item.product_id === product.product_id);
@@ -160,6 +214,23 @@ export default function POS() {
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
             <Head title="Point of Sales" />
+            
+            {/* Full-screen prompt overlay */}
+            {showFullScreenPrompt && (
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+                    <div className="bg-gray-800 p-6 rounded-xl max-w-md text-center">
+                        <h2 className="text-xl font-bold mb-4 text-white">Press anywhere or any key to enter full-screen mode</h2>
+                        <p className="text-gray-300 mb-6">For the best experience, this application works in full-screen mode.</p>
+                        <Button 
+                            className="bg-blue-500 hover:bg-blue-600" 
+                            onClick={toggleFullScreen}
+                        >
+                            Enter Full-Screen Mode
+                        </Button>
+                    </div>
+                </div>
+            )}
+            
             <div className="flex h-full flex-1 gap-4 p-4 bg-gray-900 text-white">
                 {/* Product Section */}
                 <div className="flex-1 space-y-4 p-4 bg-gray-800 rounded-xl">
