@@ -14,6 +14,8 @@ use App\Http\Controllers\AdminStaffManagementController;
 use App\Http\Controllers\AdminPromotionsController;
 
 
+
+
 //Staff Controllers
 use App\Http\Controllers\StaffInventoryController;
 use App\Http\Controllers\StaffProductController;
@@ -34,7 +36,6 @@ Route::get('/', function () {
 })->name('home');
 
 
-
 Route::middleware(['admin'])->group(function () {
     //Dashboard
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
@@ -42,6 +43,8 @@ Route::middleware(['admin'])->group(function () {
 
     //Products
     Route::get('/admin/products', [AdminProductController::class, 'index'])->name('admin.products');
+    Route::get('/admin/products/newest', [AdminProductController::class, 'fetchNewestProducts'])->name('admin.products.newest');
+    Route::get('/admin/products/fetch', [AdminProductController::class, 'fetchProducts'])->name('admin.products.fetch');
     Route::post('/admin/products/store', [AdminProductController::class, 'store'])->name('admin.products.store');
     Route::put('/admin/products/{id}', [AdminProductController::class, 'update'])->name('admin.products.update');
     Route::get('/admin/categories', [AdminProductController::class, 'getCategories']);
@@ -58,7 +61,10 @@ Route::middleware(['admin'])->group(function () {
     Route::get('/api/orders', [AdminSalesController::class, 'getAllOrders']); // New route for fetching all orders
     Route::get('/api/total-sales', [AdminDashboardController::class, 'getTotalSales']); // New route for fetching total sales
     Route::get('/api/user-activity-logs', [AdminDashboardController::class, 'getUserActivityLogs']); // New route for fetching user activity logs
+    
+    //Inventory
     Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory');
+    Route::get('/admin/inventory/fetch', [AdminInventoryController::class, 'fetchInventory'])->name('admin.inventory.index');
     Route::post('/admin/inventory/store', [AdminInventoryController::class, 'store'])->name('admin.inventory.store');
     Route::delete('/admin/inventory/{id}', [AdminInventoryController::class, 'destroy'])->name('admin.inventory.destroy');
 

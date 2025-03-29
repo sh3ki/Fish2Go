@@ -10,20 +10,55 @@ use Illuminate\Support\Facades\Storage;
 
 class AdminInventoryController extends Controller
 {
+
+    
     public function index()
     {
         $inventory = Inventory::latest()->paginate(10); // Paginate latest 10 entries
-
+    
         // Cache the 10 newest items for 7 days
         $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
             return Inventory::latest()->take(10)->get();
         });
-
+    
         return Inertia::render('admin_inventory', [
-            'inventory' => $inventory,
+            'inventory' => [
+                'data' => $inventory->items(), // Ensure it's an array
+                'current_page' => $inventory->currentPage(),
+                'last_page' => $inventory->lastPage(),
+            ],
             'newestItems' => $newestItems,
         ]);
     }
+
+    public function fetchInventory()
+{
+    $inventory = Inventory::latest()->paginate(10);
+
+    $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
+        return Inventory::latest()->take(10)->get();
+    });
+
+    return response()->json([
+        'inventory' => [
+            'data' => $inventory->getCollection()->map(function ($item) {
+                return [
+                    'inventory_id' => $item->inventory_id,
+                    'inventory_name' => $item->inventory_name,
+                    'inventory_qty' => $item->inventory_qty,
+                    'inventory_price' => $item->inventory_price,
+                    'inventory_image' => $item->inventory_image,
+                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                ];
+            }),
+            'current_page' => $inventory->currentPage(),
+            'last_page' => $inventory->lastPage(),
+        ],
+        'newestItems' => $newestItems,
+    ]);
+}
+
+    
 
     public function store(Request $request) {
         $request->validate([

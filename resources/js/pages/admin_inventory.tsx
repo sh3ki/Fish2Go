@@ -10,7 +10,7 @@ import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 import { confirmAlert } from "react-confirm-alert";
 import "react-confirm-alert/src/react-confirm-alert.css";
-import { Star } from "lucide-react";
+import { BadgeCheck, Star } from "lucide-react";
 import { motion } from "framer-motion";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -50,10 +50,13 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
         price: "", // Add price field
     });
 
+    const [currentPage, setCurrentPage] = useState(inventory.current_page);
+    const [lastPage, setLastPage] = useState(inventory.last_page);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [inventoryList, setInventoryList] = useState(inventory.data);
     const [newestItemsList, setNewestItemsList] = useState(newestItems);
+
 
     useEffect(() => {
         const interval = setInterval(async () => {
@@ -224,7 +227,9 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     const handlePageChange = async (page: number) => {
         try {
             const response = await axios.get(route("admin.inventory.index", { page }));
-            setInventoryList(response.data.props.inventory.data);
+            setInventoryList(response.data.inventory.data);
+            setCurrentPage(response.data.inventory.current_page);
+            setLastPage(response.data.inventory.last_page);
         } catch (err) {
             toast.error("❌ " + (err.response?.data?.message || "Something went wrong!"), {
                 position: "top-center",
@@ -239,6 +244,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
             });
         }
     };
+    
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -334,21 +340,25 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                     </div>
                     {/* Pagination Controls */}
                     <div className="flex justify-between mt-4">
-                        <Button
-                            onClick={() => handlePageChange(inventory.current_page - 1)}
-                            disabled={inventory.current_page === 1}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-md"
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            onClick={() => handlePageChange(inventory.current_page + 1)}
-                            disabled={inventory.current_page === inventory.last_page}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-md"
-                        >
-                            Next
-                        </Button>
-                    </div>
+    <Button
+        onClick={() => handlePageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className={`px-4 py-2 rounded-md ${currentPage === 1 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 text-white"}`}
+    >
+        Previous
+    </Button>
+    <span className="text-gray-700 font-medium">
+        Page {currentPage} of {lastPage}
+    </span>
+    <Button
+        onClick={() => handlePageChange(currentPage + 1)}
+        disabled={currentPage === lastPage}
+        className={`px-4 py-2 rounded-md ${currentPage === lastPage ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 text-white"}`}
+    >
+        Next
+    </Button>
+</div>
+
                 </div>
 
                  {/* Inventory Form and Newest Items */}
@@ -443,7 +453,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                 <div key={index} className="relative flex flex-col items-center p-2 bg-gray-100 dark:bg-gray-700 rounded-md">
                     {/* Star Icon in Upper Right */}
                     <div className="absolute top-1 right-1 animate-[heartbeat_2.5s_ease-in-out_infinite]">
-  <Star className="text-yellow-500" size={18} />
+  <BadgeCheck className="text-yellow-500" size={18} />
 </div>
            
                     {item.inventory_image && (

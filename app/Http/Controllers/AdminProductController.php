@@ -15,31 +15,84 @@ class AdminProductController extends Controller
 {
     public function index()
     {
+        // ✅ Ensure category is eager loaded
         $products = Product::with('category')->latest()->paginate(10);
+        $newestProducts = Product::with('category')->latest()->take(10)->get();
+    
+        return Inertia::render('admin_product', [
+            'products' => [
+                'data' => $products->map(function ($product) {
+                    return [
+                        'product_id' => $product->product_id,
+                        'product_name' => $product->product_name,
+                        'category_id' => $product->category_id,
+                        'category_name' => $product->category->category_name ?? 'Unknown', // ✅ Prevent undefined error
+                        'product_price' => $product->product_price,
+                        'product_qty' => $product->product_qty,
+                        'product_image' => $product->product_image,
+                        'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                }),
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+            ],
+            'newestProducts' => $newestProducts,
+        ]);
+    }
 
+    public function fetchNewestProducts()
+{
+    $newestProducts = Product::with('category')->latest()->take(10)->get()->map(function ($product) {
+        return [
+            'product_id' => $product->product_id,
+            'product_name' => $product->product_name,
+            'category_id' => $product->category_id,
+            'category_name' => $product->category->category_name ?? 'Unknown',
+            'product_price' => $product->product_price,
+            'product_qty' => $product->product_qty,
+            'product_image' => $product->product_image,
+            'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
+        ];
+    });
+
+    return response()->json(['newestProducts' => $newestProducts]);
+}
+
+    
+    public function fetchProducts()
+    {
+        // ✅ Ensure category is eager loaded
+        $products = Product::with('category')->latest()->paginate(10);
+    
         $newestProducts = Cache::remember('newest_products', now()->addDays(7), function () {
             return Product::with('category')->latest()->take(10)->get();
         });
-
-        // Format the response to include category name and formatted created_at
-        $products->getCollection()->transform(function ($product) {
+    
+        // Transform product data
+        $productsData = $products->getCollection()->map(function ($product) {
             return [
                 'product_id' => $product->product_id,
                 'product_name' => $product->product_name,
                 'category_id' => $product->category_id,
-                'category_name' => $product->category->category_name ?? 'Unknown', // Ensure category name is included
+                'category_name' => $product->category->category_name ?? 'Unknown',
                 'product_price' => $product->product_price,
                 'product_qty' => $product->product_qty,
                 'product_image' => $product->product_image,
-                'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null, // Format created_at
+                'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
             ];
         });
-
-        return Inertia::render('admin_product', [
-            'products' => $products,
+    
+        return response()->json([
+            'products' => [
+                'data' => $productsData,
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+            ],
             'newestProducts' => $newestProducts,
         ]);
     }
+    
+    
 
 
     public function store(Request $request)

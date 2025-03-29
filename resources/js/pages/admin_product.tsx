@@ -10,7 +10,7 @@ import toast, { Toaster } from "react-hot-toast"; // Import toast
 import axios from "axios"; // ✅ Import axios
 import { confirmAlert } from 'react-confirm-alert'; // Import react-confirm-alert
 import 'react-confirm-alert/src/react-confirm-alert.css'; // Import css
-import { Star } from "lucide-react";
+import { BadgeCheck, Star } from "lucide-react";
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -63,16 +63,32 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-    const [productList, setProductList] = useState(products.data); // Add state for product list
-    const [currentPage, setCurrentPage] = useState(products.current_page); // Add state for current page
-    const [lastPage, setLastPage] = useState(products.last_page); // Add state for last page
+    const [productList, setProductList] = useState<Product[]>(products?.data || []);
+    const [currentPage, setCurrentPage] = useState(products?.current_page || 1);
+    const [lastPage, setLastPage] = useState(products?.last_page || 1);    
     const addProductRef = useRef<HTMLDivElement>(null); // Add ref for Add Product section
-    const [newestItems, setNewestItems] = useState<Product[]>(newestProducts); // Add state for newest items
+    const [newestItems, setNewestItems] = useState<Product[]>(newestProducts); // State for newest items
     const [categories, setCategories] = useState<Category[]>([]);
-
+    
+    // Update newest items when the page loads
     useEffect(() => {
         setNewestItems(newestProducts);
     }, [newestProducts]);
+    
+    // Fetch newest products every 5 seconds
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                const response = await axios.get(route("admin.products.newest"));
+                setNewestItems(response.data.newestProducts); // Update newest items list
+            } catch (error) {
+                console.error("Error fetching newest items:", error);
+            }
+        }, 5000); // Fetch every 5 seconds
+    
+        return () => clearInterval(interval); // Cleanup on unmount
+    }, []);
+    
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -248,13 +264,21 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
 
     const fetchProducts = async (page: number) => {
         try {
-            const response = await axios.get(route("admin.products.index", { page }));
-            
-            // ✅ Ensure category_name and created_at are included
-            setProductList(response.data.data);
-            setCurrentPage(response.data.current_page);
-            setLastPage(response.data.last_page);
+            const response = await axios.get(route("admin.products.fetch", { page }));
+    
+            console.log("Full API Response:", response); // Debugging
+            console.log("Response Data:", response.data); // Check data format
+    
+            if (!response.data || !response.data.products || !response.data.products.data) {
+                throw new Error("Invalid API response structure");
+            }
+    
+            setProductList(response.data.products.data ?? []);
+            setCurrentPage(response.data.products.current_page ?? 1);
+            setLastPage(response.data.products.last_page ?? 1);
         } catch (error) {
+            console.error("Error fetching products:", error);
+    
             toast.error("Failed to fetch products.", {
                 position: "top-right",
                 style: {
@@ -268,6 +292,8 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
             });
         }
     };
+    
+    
     
 
     const handlePreviousPage = () => {
@@ -318,7 +344,7 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
                             <thead>
                                 <tr className="bg-gray-200 dark:bg-gray-700">
                                     <th className="border px-4 py-2 min-w-[70px]">ID</th>
-                                    <th className="border px-4 py-2 min-w-[150px]">Name</th>
+                                    <th className="border px-4 py-2 min-w-[350px]">Name</th>
                                     <th className="border px-4 py-2 min-w-[100px]">Image</th>
                                     <th className="border px-4 py-2 min-w-[150px]">Stock Status</th>
                                     <th className="border px-4 py-2 min-w-[130px]">Price</th>
@@ -517,7 +543,7 @@ export default function AdminProduct({ products, newestProducts }: PageProps) {
             newestItems.map((product, index) => (
                 <div key={index} className="relative flex flex-col items-center p-2 bg-gray-100 dark:bg-gray-700 rounded-md">
                                    <div className="absolute top-1 right-1 animate-[heartbeat_2.5s_ease-in-out_infinite]">
-  <Star className="text-yellow-500" size={18} />
+  <BadgeCheck className="text-yellow-500" size={18} />
 </div>
                     
                     {product.product_image && (
