@@ -24,7 +24,7 @@ export default function POS() {
     const [showFullScreenPrompt, setShowFullScreenPrompt] = useState(true);
     const [errorMessage, setErrorMessage] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
-    const [filteredProducts, setFilteredProducts] = useState(initialProducts);
+    const [filteredProducts, setFilteredProducts] = useState([]);  // Initialize as empty array
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [activeCategory, setActiveCategory] = useState("all"); // Add this state to track active category
     const categoryButtonRef = useRef(null);
@@ -33,10 +33,42 @@ export default function POS() {
 
     const cashInputRef = useRef(null);
 
+    // Define the category order function
+    const sortProductsByCategory = (products) => {
+        // Define specific category order
+        const categoryOrder = {
+            "Grilled": 1,
+            "Ready2Eat": 2,
+            "Ready2Cook": 3,
+            "Bottled": 4
+        };
+        
+        // Sort products by the defined category order
+        return [...products].sort((a, b) => {
+            const orderA = categoryOrder[a.category_name] || 999; // Default high number for unknown categories
+            const orderB = categoryOrder[b.category_name] || 999;
+            
+            // First sort by category order
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+            
+            // If same category, sort by name
+            return a.product_name.localeCompare(b.product_name);
+        });
+    };
+
+    // Initialize filtered products with sorted products on component mount
+    useEffect(() => {
+        const sortedProducts = sortProductsByCategory(initialProducts);
+        setFilteredProducts(sortedProducts);
+    }, [initialProducts]);
+
     // Enhanced filter products based on search term
     useEffect(() => {
         if (searchTerm.trim() === "") {
-            setFilteredProducts(availableProducts);
+            // When clearing search, maintain category sorting
+            setFilteredProducts(sortProductsByCategory(availableProducts));
         } else {
             // Split the search term into individual words (tokens)
             const searchTokens = searchTerm.toLowerCase().split(/\s+/).filter(token => token.length > 0);
@@ -453,28 +485,8 @@ export default function POS() {
     const filterByCategory = (categoryId) => {
         setActiveCategory(categoryId);
         if (categoryId === "all") {
-            // Define specific category order
-            const categoryOrder = {
-                "Grilled": 1,
-                "Ready2Eat": 2,
-                "Ready2Cook": 3,
-                "Bottled": 4
-            };
-            
-            // Sort products by the defined category order
-            const sortedProducts = [...availableProducts].sort((a, b) => {
-                const orderA = categoryOrder[a.category_name] || 999; // Default high number for unknown categories
-                const orderB = categoryOrder[b.category_name] || 999;
-                
-                // First sort by category order
-                if (orderA !== orderB) {
-                    return orderA - orderB;
-                }
-                
-                // If same category, sort by name
-                return a.product_name.localeCompare(b.product_name);
-            });
-            
+            // Use the shared sorting function
+            const sortedProducts = sortProductsByCategory(availableProducts);
             setFilteredProducts(sortedProducts);
         } else {
             const filtered = availableProducts.filter(product =>
