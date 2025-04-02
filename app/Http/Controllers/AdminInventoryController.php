@@ -32,33 +32,31 @@ class AdminInventoryController extends Controller
     }
 
     public function fetchInventory()
-{
-    $inventory = Inventory::latest()->paginate(10);
+    {
+        $inventory = Inventory::latest()->paginate(10);
 
-    $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
-        return Inventory::latest()->take(10)->get();
-    });
+        $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
+            return Inventory::latest()->take(10)->get();
+        });
 
-    return response()->json([
-        'inventory' => [
-            'data' => $inventory->getCollection()->map(function ($item) {
-                return [
-                    'inventory_id' => $item->inventory_id,
-                    'inventory_name' => $item->inventory_name,
-                    'inventory_qty' => $item->inventory_qty,
-                    'inventory_price' => $item->inventory_price,
-                    'inventory_image' => $item->inventory_image,
-                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
-                ];
-            }),
-            'current_page' => $inventory->currentPage(),
-            'last_page' => $inventory->lastPage(),
-        ],
-        'newestItems' => $newestItems,
-    ]);
-}
-
-    
+        return response()->json([
+            'inventory' => [
+                'data' => $inventory->getCollection()->map(function ($item) {
+                    return [
+                        'inventory_id' => $item->inventory_id,
+                        'inventory_name' => $item->inventory_name,
+                        'inventory_qty' => $item->inventory_qty,
+                        'inventory_price' => $item->inventory_price,
+                        'inventory_image' => $item->inventory_image,
+                        'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                }),
+                'current_page' => $inventory->currentPage(),
+                'last_page' => $inventory->lastPage(),
+            ],
+            'newestItems' => $newestItems,
+        ]);
+    }
 
     public function store(Request $request) {
         $request->validate([
@@ -84,6 +82,44 @@ class AdminInventoryController extends Controller
         Cache::forget('newest_items');
 
         return response()->json(['inventory' => $inventory, 'message' => 'Inventory added successfully!']);
+    }
+
+    public function update(Request $request, $id)
+    {
+        // Validate incoming request
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'quantity' => 'required|integer|min:1',
+            'price' => 'required|numeric|min:0',
+            'item_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $inventory = Inventory::findOrFail($id);
+
+        // Process image if provided; delete old image if exists
+        if ($request->hasFile('item_image')) {
+            if ($inventory->inventory_image) {
+                Storage::disk('public')->delete($inventory->inventory_image);
+            }
+            $validated['item_image'] = $request->file('item_image')->store('inventory', 'public');
+        } else {
+            $validated['item_image'] = $inventory->inventory_image;
+        }
+
+        // Update the inventory fields
+        $inventory->inventory_name = $validated['name'];
+        $inventory->inventory_qty = $validated['quantity'];
+        $inventory->inventory_price = $validated['price'];
+        $inventory->inventory_image = $validated['item_image'];
+        $inventory->save();
+
+        // Clear cache for newest items
+        Cache::forget('newest_items');
+
+        return response()->json([
+            'inventory' => $inventory,
+            'message' => 'Inventory updated successfully!'
+        ]);
     }
 
     public function destroy($id)

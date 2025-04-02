@@ -35,6 +35,8 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    // Look for any forced URLs or scheme configurations
+
     /*
     |--------------------------------------------------------------------------
     | Autoloaded Service Providers

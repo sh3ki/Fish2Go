@@ -13,9 +13,6 @@ use App\Http\Controllers\AdminExpensesController;
 use App\Http\Controllers\AdminStaffManagementController;
 use App\Http\Controllers\AdminPromotionsController;
 
-
-
-
 //Staff Controllers
 use App\Http\Controllers\StaffInventoryController;
 use App\Http\Controllers\StaffProductController;
@@ -35,18 +32,19 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
-
 Route::middleware(['admin'])->group(function () {
     //Dashboard
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory');
+    Route::get('/admin/dashboard/payment-method-percentages', [AdminDashboardController::class, 'paymentMethodPercentages']);
 
     //Products
     Route::get('/admin/products', [AdminProductController::class, 'index'])->name('admin.products');
     Route::get('/admin/products/newest', [AdminProductController::class, 'fetchNewestProducts'])->name('admin.products.newest');
     Route::get('/admin/products/fetch', [AdminProductController::class, 'fetchProducts'])->name('admin.products.fetch');
     Route::post('/admin/products/store', [AdminProductController::class, 'store'])->name('admin.products.store');
-    Route::put('/admin/products/{id}', [AdminProductController::class, 'update'])->name('admin.products.update');
+    Route::match(['put', 'post'], '/admin/products/{id}', [AdminProductController::class, 'update'])->name('admin.products.update');
+    
     Route::get('/admin/categories', [AdminProductController::class, 'getCategories']);
     Route::delete('/admin/products/{id}', [AdminProductController::class, 'destroy'])->name('admin.products.destroy');
     Route::get('/admin/products/realtime', [AdminProductController::class, 'getProducts'])->name('admin.products.realtime');
@@ -66,6 +64,7 @@ Route::middleware(['admin'])->group(function () {
     Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory');
     Route::get('/admin/inventory/fetch', [AdminInventoryController::class, 'fetchInventory'])->name('admin.inventory.index');
     Route::post('/admin/inventory/store', [AdminInventoryController::class, 'store'])->name('admin.inventory.store');
+    Route::put('/admin/inventory/{id}', [AdminInventoryController::class, 'update'])->name('admin.inventory.update');
     Route::delete('/admin/inventory/{id}', [AdminInventoryController::class, 'destroy'])->name('admin.inventory.destroy');
 
     //Notifications
@@ -77,7 +76,6 @@ Route::middleware(['admin'])->group(function () {
     //Messages
     Route::get('/admin/messages', [AdminMessagesController::class, 'index'])->name('admin.messages');
 
-
     //Expenses
     Route::get('/admin/expenses', [AdminExpensesController::class, 'index'])->name('admin.expenses');
 
@@ -87,10 +85,6 @@ Route::middleware(['admin'])->group(function () {
     //Promotions
     Route::get('/admin/promotions', [AdminPromotionsController::class, 'index'])->name('admin.promotions');
 });
-
-
-
-
 
 Route::middleware(['staff'])->group(function () {
     //Pos
@@ -122,8 +116,6 @@ Route::middleware(['staff'])->group(function () {
 Route::post('/userlog/login', [UserlogController::class, 'logIn']);
 Route::post('/userlog/logout', [UserlogController::class, 'logOut']);
 Route::get('/userlogs', [UserlogController::class, 'index']);
-
-
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

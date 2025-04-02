@@ -18,9 +18,23 @@ export default defineConfig({
         host: '192.168.1.10', 
         port: 5173,
         strictPort: true,
+        https: false,
         hmr: {
             host: '192.168.1.10',
+            protocol: 'http',
         },
+        // Add CORS configuration
+        cors: {
+            origin: 'http://192.168.1.10:8000',
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            credentials: true,
+        },
+        // Add headers
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
+        }
     },
     esbuild: {
         jsx: 'automatic',

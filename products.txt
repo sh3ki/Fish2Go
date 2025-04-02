@@ -1,0 +1,194 @@
+all product_notification set to unread
+image is set to "filename.png"
+
+this is the info:
+name
+price
+qty
+	
+
+GRILLED: (category 1)
+
+Boneless Bangus (Mega)
+0
+0
+
+Boneless Bangus (Extra Jumbo)
+495
+34
+
+Boneless Bangus (Jumbo)
+425
+70
+
+Boneless Bangus (Biggie)
+385
+0
+
+Boneless Bangus (Middie)
+249
+9
+
+Tuna Belly (300g)
+369
+3
+
+Tuna Belly (400g)
+455
+7
+
+Tuna Belly (500g)
+569
+0
+
+Tuna Panga (400g)
+329
+0
+
+Tuna Panga (500g)
+399
+5
+
+Tilapia (Jumbo)
+359
+0
+
+Tilapia (Big)
+329
+0
+
+Tilapia (Medium)
+255
+0
+
+Pampano (Small)
+399
+0
+
+Pampano (Small)
+545
+10
+
+Flavored Bangus (Lemon Grass)
+420
+3
+
+Flavored Bangus (Ginger Garlic)
+420
+6
+
+
+READY2EAT: (category 2)
+
+Bangus Relleno (500g)
+599
+12
+
+Bangus Sisig
+235
+3
+
+Tuna Bicol Express
+279
+4
+
+Tuna Sisig
+0
+0
+
+Laing
+185
+3
+
+Ginataang Santol
+175
+8
+
+
+READY2COOK: (category 3)
+
+Bangus Lumpiang Shanghai
+195
+2
+
+Fish Longganisa
+209
+3
+
+Fish Embutido
+265
+3
+
+Bangus Tinapa (300g)
+169
+2
+
+Bangus Daing (300g - 1pc)
+255
+0
+
+Bangus Daing (300g - 2pc)
+255
+3
+
+
+BOTTLED: (category 4)
+
+Achara Papaya
+129
+18
+
+Chili Sauce
+119
+6
+
+Burong Isda
+109
+0
+
+Burong Hipon
+0
+0
+
+Bagoong Isda
+109
+5
+
+Bagoong Alamang (Regular)
+139
+0
+
+Bagoong Alamang (Spicy)
+149
+0
+
+Bangus Sauce
+0
+136
+
+Bangus Sauce (Extra)
+6
+136
+
+Tuna Sauce
+0
+18
+
+Tuna Sauce (Extra)
+6
+18
+
+Lemon Grass Mixture
+0
+3
+
+Ginger Garlic Mixture
+0
+6
+
+Ketchup Dip
+0
+20
+
+
+

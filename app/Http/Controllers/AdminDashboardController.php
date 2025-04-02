@@ -73,4 +73,25 @@ class AdminDashboardController extends Controller
             return response()->json(['error' => 'Failed to fetch product sales data'], 500);
         }
     }
+
+    public function paymentMethodPercentages()
+    {
+        $paymentMethods = ['cash', 'gcash', 'foodpanda', 'grabfood'];
+        $results = \DB::table('orders')
+            ->select('order_payment_method', \DB::raw('COUNT(*) as count'))
+            ->whereIn('order_payment_method', $paymentMethods)
+            ->groupBy('order_payment_method')
+            ->pluck('count', 'order_payment_method');
+            
+        $total = array_sum($results->toArray());
+        
+        $data = [];
+        foreach ($paymentMethods as $method) {
+             $count = isset($results[$method]) ? $results[$method] : 0;
+             $percentage = $total > 0 ? ($count / $total) * 100 : 0;
+             $data[$method] = ['count' => $count, 'percentage' => $percentage];
+        }
+        
+        return response()->json($data);
+    }
 }

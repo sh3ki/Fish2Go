@@ -1,0 +1,29 @@
+(fish2go logo picture)
+FISH2GO
+B7 L6 Fish2Go Bldg., Jose Abad Santos Ave., 
+Salitran Iv, Dasmariñas, 4114 Cavite
+fish2go.official@gmail.com
+(+63) 9994335474
+---------------------------------
+Receipt No.: 
+Date     Time
+Cashier: (UserName)
+Order No.:  
+---------------------------------
+ITEM                 QTY           PRICE             AMOUNT
+----------------------------------
+(product name) (order quantity) (product price) (quantity*price)
+(product name) (order quantity) (product price) (quantity*price)
+(product name) (order quantity) (product price) (quantity*price)
+(product name) (order quantity) (product price) (quantity*price)
+-----------------------------------
+Subtotal:                     (order subtotal)
+Tax:                          (order tax)
+Discount:                     (order discount)
+-----------------------------------
+Total:                        (order total)
+Payment Method:	              (order payment method)
+cash:                         (order cash)
+change:                       (order change)
+------------------------------------
+Thank you for your purchase!

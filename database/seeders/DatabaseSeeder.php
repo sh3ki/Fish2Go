@@ -24,6 +24,20 @@ class DatabaseSeeder extends Seeder
             'password'  => bcrypt('123'),
             'usertype' => 'staff',
         ]);
+
+        $this->call(CategorySeeder::class);
+
+        // $this->call(ProductSeeder::class);
+
+        // $this->call(OrderSeeder::class);
+
+        // $this->call(OrderItemSeeder::class);
+
+        // $this->call(ReviewSeeder::class);
+
+        // $this->call(DeliverySeeder::class);
+
+        // $this->call(DeliveryItemSeeder::class);
         
     }
 }
