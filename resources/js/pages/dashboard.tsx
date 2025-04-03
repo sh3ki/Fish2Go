@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 import { Head } from "@inertiajs/react";
 import Chart from "react-apexcharts";
 import dayjs from "dayjs"; // For date formatting
-import { LayoutGrid, ShoppingCart, ClipboardList, Users } from "lucide-react";
-import { useInView } from "@/hooks/useInView"; // updated import
+import { LayoutGrid, ShoppingCart, ClipboardList, Users, PhilippinePeso, HandCoins } from "lucide-react";
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -100,19 +99,30 @@ const SalesOverviewChart = ({ salesData }) => {
 
   return (
     <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
-      <h3 className="text-lg font-semibold text-black dark:text-white mb-4">
-        Sales Overview
-      </h3>
+     
       <Chart options={options} series={series} type="line" height={350} />
     </div>
   );
 };
 
+const getCurrentMonthYear = () => {
+  const now = new Date();
+  return {
+    month: now.getMonth() + 1, // Months are 0-indexed
+    year: now.getFullYear(),
+  };
+};
+
 // 📌 Main Dashboard Component
 export default function Dashboard({ totalProducts, totalInventory, staffUsers }) {
   const [categoryData, setCategoryData] = useState([]);
-  const [salesData, setSalesData] = useState([]);
   const [totalSales, setTotalSales] = useState(0);
+  const [staffError, setStaffError] = useState(null);
+  const [staffPage, setStaffPage] = useState(1);
+  const staffPerPage = 5;
+  const totalStaffPages = Math.ceil(staffUsers.length / staffPerPage);
+
+  const [salesData, setSalesData] = useState([]);
   const [productSalesData, setProductSalesData] = useState([]);
   const [paymentData, setPaymentData] = useState({
     cash: { count: 0, percentage: 0 },
@@ -124,21 +134,21 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
   const [salesLoading, setSalesLoading] = useState(true);
   const [productLoading, setProductLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(true);
-  const [staffError, setStaffError] = useState(null);
-  const [staffPage, setStaffPage] = useState(1);
-  const staffPerPage = 5;
-  const totalStaffPages = Math.ceil(staffUsers.length / staffPerPage);
 
-  // Set up lazy loading refs for sections (trigger once when in view)
-  const { ref: salesRef, inView: salesInView } = useInView({ triggerOnce: true });
-  const { ref: productSalesRef, inView: productSalesInView } = useInView({ triggerOnce: true });
-  const { ref: paymentRef, inView: paymentInView } = useInView({ triggerOnce: true });
+  const [salesFilterDate, setSalesFilterDate] = useState(getCurrentMonthYear());
+  const [productSalesFilterDate, setProductSalesFilterDate] = useState(getCurrentMonthYear());
+  const [paymentFilterDate, setPaymentFilterDate] = useState(getCurrentMonthYear());
 
-  // Lazy load Sales Data when in view
-  useEffect(() => {
-    if (salesInView) {
+  const handleDateChange = (setFilterDate) => (e) => {
+    const { name, value } = e.target;
+    setFilterDate((prev) => ({ ...prev, [name]: parseInt(value, 10) }));
+  };
+
+  const fetchSalesData = useMemo(() => {
+    return () => {
+      setSalesLoading(true);
       axios
-        .get("/api/sales-data")
+        .get(`/api/sales-data?month=${salesFilterDate.month}&year=${salesFilterDate.year}`)
         .then((response) => {
           const formattedData = response.data.map((item) => ({
             date: dayjs(item.date).format("DD MMM"),
@@ -147,28 +157,36 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
           setSalesData(formattedData);
           setSalesLoading(false);
         })
-        .catch((error) => console.error("Error fetching sales data!", error));
-    }
-  }, [salesInView]);
+        .catch((error) => {
+          console.error("Error fetching sales data!", error);
+          setSalesData([]);
+          setSalesLoading(false);
+        });
+    };
+  }, [salesFilterDate]);
 
-  // Lazy load Product Sales Data when in view
-  useEffect(() => {
-    if (productSalesInView) {
+  const fetchProductSalesData = useMemo(() => {
+    return () => {
+      setProductLoading(true);
       axios
-        .get("/api/product-sales-data")
+        .get(`/api/product-sales-data?month=${productSalesFilterDate.month}&year=${productSalesFilterDate.year}`)
         .then((response) => {
           setProductSalesData(response.data);
           setProductLoading(false);
         })
-        .catch((error) => console.error("Error fetching product sales data!", error));
-    }
-  }, [productSalesInView]);
+        .catch((error) => {
+          console.error("Error fetching product sales data!", error);
+          setProductSalesData([]);
+          setProductLoading(false);
+        });
+    };
+  }, [productSalesFilterDate]);
 
-  // Lazy load Payment Methods Data when in view
-  useEffect(() => {
-    if (paymentInView) {
+  const fetchPaymentData = useMemo(() => {
+    return () => {
+      setPaymentLoading(true);
       axios
-        .get("/admin/dashboard/payment-method-percentages")
+        .get(`/admin/dashboard/payment-method-percentages?month=${paymentFilterDate.month}&year=${paymentFilterDate.year}`)
         .then((response) => {
           const data = response.data;
           setPaymentData(data);
@@ -180,11 +198,31 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
           ]);
           setPaymentLoading(false);
         })
-        .catch((error) =>
-          console.error("Error fetching payment percentages!", error)
-        );
-    }
-  }, [paymentInView]);
+        .catch((error) => {
+          console.error("Error fetching payment percentages!", error);
+          setPaymentData({
+            cash: { count: 0, percentage: 0 },
+            gcash: { count: 0, percentage: 0 },
+            foodpanda: { count: 0, percentage: 0 },
+            grabfood: { count: 0, percentage: 0 },
+          });
+          setPaymentSeries([]);
+          setPaymentLoading(false);
+        });
+    };
+  }, [paymentFilterDate]);
+
+  useEffect(() => {
+    fetchSalesData();
+  }, [fetchSalesData]);
+
+  useEffect(() => {
+    fetchProductSalesData();
+  }, [fetchProductSalesData]);
+
+  useEffect(() => {
+    fetchPaymentData();
+  }, [fetchPaymentData]);
 
   useEffect(() => {
     axios
@@ -315,6 +353,41 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
     },
   };
 
+  const renderDateFilter = (filterDate, setFilterDate) => {
+    const startYear = 2024; // Start year
+    const endYear = 2034; // End year
+    const yearsRange = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+
+    return (
+      <div className="flex items-center space-x-2">
+        <select
+          name="month"
+          value={filterDate.month}
+          onChange={handleDateChange(setFilterDate)}
+          className="px-2 py-1 rounded bg-gray-300 dark:bg-gray-700 text-black dark:text-white"
+        >
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {dayjs().month(i).format("MMMM")}
+            </option>
+          ))}
+        </select>
+        <select
+          name="year"
+          value={filterDate.year}
+          onChange={handleDateChange(setFilterDate)}
+          className="px-2 py-1 rounded bg-gray-300 dark:bg-gray-700 text-black dark:text-white"
+        >
+          {yearsRange.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  };
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Dashboard" />
@@ -390,9 +463,16 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
           </div>
         </div>
 
-        {/* Sales Overview Chart Lazy-Loaded */}
-        <div ref={salesRef} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Sales Overview Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-4 bg-gray-300 dark:bg-gray-800 p-4 rounded-xl">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+                <PhilippinePeso className="w-5 h-5 text-purple-900 dark:text-purple-500" />
+                <span className="text-black dark:text-white">Sales Overview</span>
+              </h3>
+              {renderDateFilter(salesFilterDate, setSalesFilterDate)}
+            </div>
             {salesLoading ? (
               <div className="flex justify-center items-center h-64">
                 <svg className="animate-spin h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24">
@@ -406,12 +486,16 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
           </div>
         </div>
 
-        {/* Product Sales Bar Chart Lazy-Loaded */}
-        <div ref={productSalesRef} className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
+        {/* Product Sales Bar Chart */}
+        <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
           <div className="lg:col-span-4 bg-gray-300 dark:bg-gray-800 p-4 rounded-xl">
-            <h3 className="text-lg font-semibold text-black dark:text-white mb-4">
-              Product Sales
-            </h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+                <PhilippinePeso className="w-5 h-5 text-purple-900 dark:text-purple-500" />
+                <span className="text-black dark:text-white">Product Sales</span>
+              </h3>
+              {renderDateFilter(productSalesFilterDate, setProductSalesFilterDate)}
+            </div>
             {productLoading ? (
               <div className="flex justify-center items-center h-350">
                 <svg
@@ -424,9 +508,7 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
                     className="opacity-25"
                     cx="12"
                     cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
+                    r="10" stroke="currentColor" strokeWidth="4"
                   ></circle>
                   <path
                     className="opacity-75"
@@ -449,12 +531,16 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
           </div>
         </div>
 
-        {/* Payment Methods Donut Chart Lazy-Loaded */}
-        <div ref={paymentRef} className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
+        {/* Payment Methods Donut Chart */}
+        <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
           <div className="bg-gray-300 dark:bg-gray-800 p-4 rounded-xl">
-            <h3 className="text-lg font-semibold text-black dark:text-white mb-4">
-              Payment Methods
-            </h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+                <HandCoins className="w-5 h-5 text-purple-900 dark:text-purple-500" />
+                <span className="text-black dark:text-white">Payment Method</span>
+              </h3>
+              {renderDateFilter(paymentFilterDate, setPaymentFilterDate)}
+            </div>
             {paymentLoading ? (
               <div className="flex justify-center items-center h-350">
                 <svg
@@ -482,6 +568,33 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
                 height={350}
               />
             )}
+          </div>
+        </div>
+
+        {/* Leftover Products Section */}
+        <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
+          <div className="p-4 bg-gray-300 dark:bg-gray-800 rounded-xl w-full">
+            <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
+              <ClipboardList className="w-5 h-5 text-purple-900 dark:text-purple-500" />
+              <span className="text-black dark:text-white">Leftover Products</span>
+            </h3>
+            <ul className="mt-4 space-y-2">
+              <li className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-black dark:text-white">
+                Product 1
+              </li>
+              <li className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-black dark:text-white">
+                Product 2
+              </li>
+              <li className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-black dark:text-white">
+                Product 3
+              </li>
+              <li className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-black dark:text-white">
+                Product 4
+              </li>
+              <li className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-black dark:text-white">
+                Product 5
+              </li>
+            </ul>
           </div>
         </div>
       </div>

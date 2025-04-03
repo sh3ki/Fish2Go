@@ -256,7 +256,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
             <input
               type="text"
               placeholder="Search Inventory"
-              className="input w-full bg-gray-700 p-1.5 pl-3 text-sm text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white-400"
+              className="input w-full bg-gray-700 dark:bg-gray-700 dark:text-white bg-gray-200 text-gray-900 p-1.5 pl-3 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-inset focus:ring-gray-400 dark:focus:ring-white-400"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -280,34 +280,34 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
 
         <div ref={tableRef} className="flex-1 overflow-y-auto p-5 pt-0 pb-16">
           <div className="overflow-x-auto">
-            <div className="bg-gray-900 rounded-lg shadow overflow-hidden min-w-[900px]">
-              <table className="min-w-full divide-y divide-gray-700 border-collapse">
-                <thead className="bg-gray-700 top-0 z-10">
+            <div className="bg-gray-900 dark:bg-gray-900 bg-white rounded-lg shadow overflow-hidden min-w-[900px]">
+              <table className="min-w-full divide-y divide-gray-700 dark:divide-gray-700 divide-gray-300">
+                <thead className="bg-gray-700 dark:bg-gray-700 bg-gray-100">
                   <tr>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-14">
+                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white dark:text-white text-gray-900 uppercase tracking-wider w-14">
                       ID
                     </th>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-28">
+                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white dark:text-white text-gray-900 uppercase tracking-wider w-28">
                       Image
                     </th>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-28">
+                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white dark:text-white text-gray-900 uppercase tracking-wider w-28">
                       Name
                     </th>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-30">
+                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white dark:text-white text-gray-900 uppercase tracking-wider w-30">
                       Price
                     </th>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-20">
+                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white dark:text-white text-gray-900 uppercase tracking-wider w-20">
                       Qty
                     </th>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-30">
+                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white dark:text-white text-gray-900 uppercase tracking-wider w-30">
                       Status
                     </th>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-36">
+                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white dark:text-white text-gray-900 uppercase tracking-wider w-36">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-gray-800 divide-y divide-gray-700">
+                <tbody className="bg-gray-800 dark:bg-gray-800 bg-white divide-y divide-gray-700 dark:divide-gray-700 divide-gray-300">
                   {isLoading && inventoryList.length === 0 ? (
                     <tr>
                       <td
@@ -337,9 +337,9 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                     filteredInventory.map((item) => (
                       <tr
                         key={item.inventory_id}
-                        className="hover:bg-gray-700/60 transition-colors"
+                        className="hover:bg-gray-700/60 dark:hover:bg-gray-700/60 hover:bg-gray-100 transition-colors"
                       >
-                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300">
+                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-900">
                           {item.inventory_id}
                         </td>
                         <td className="px-1 py-1 text-center whitespace-nowrap">
@@ -355,18 +355,18 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                               }}
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gray-700 rounded mx-auto"></div>
+                            <div className="w-10 h-10 bg-gray-700 dark:bg-gray-700 bg-gray-300 rounded mx-auto"></div>
                           )}
                         </td>
-                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300">
+                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-900">
                           {item.inventory_name}
                         </td>
-                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300">
+                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-900">
                           {`₱${parseFloat(
                             item.inventory_price.toString()
                           ).toFixed(2)}`}
                         </td>
-                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300">
+                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-900">
                           {item.inventory_qty}
                         </td>
                         <td className="px-1 py-1 text-center whitespace-nowrap">
@@ -398,13 +398,13 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                         <td className=" px-4 py-2 flex justify-center gap-2">
                           <button
                             onClick={() => openEditModal(item)}
-                            className="inline-flex items-center justify-center p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-colors"
+                            className="inline-flex items-center justify-center p-2 rounded-full bg-blue-500/20 dark:bg-blue-500/20 hover:bg-blue-500/30 dark:hover:bg-blue-500/30 text-blue-400 dark:text-blue-400 transition-colors"
                           >
                             <Edit size={15} />
                           </button>
                           <button
                             onClick={() => handleDelete(item.inventory_id)}
-                            className="inline-flex items-center justify-center p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+                            className="inline-flex items-center justify-center p-2 rounded-full bg-red-500/20 dark:bg-red-500/20 hover:bg-red-500/30 dark:hover:bg-red-500/30 text-red-400 dark:text-red-400 transition-colors"
                           >
                             <Trash2 size={15} />
                           </button>

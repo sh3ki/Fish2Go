@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use App\Models\Product;
 
 class ProductSeeder extends Seeder
@@ -13,6 +14,7 @@ class ProductSeeder extends Seeder
      */
     public function run(): void
     {
+        DB::table('cooks')->truncate();
         // GRILLED products (category_id = 1)
         $grilledProducts = [
             ['name' => 'Boneless Bangus (Mega)', 'price' => 0, 'qty' => 0],

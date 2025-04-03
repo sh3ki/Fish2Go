@@ -10,31 +10,30 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             ssr: 'resources/js/ssr.tsx',
             refresh: true,
+            detectTls: false,
         }),
         react(),
         tailwindcss(),
     ],
     server: {
-        host: '192.168.1.10', 
+        host: '0.0.0.0', 
         port: 5173,
         strictPort: true,
-        https: false,
+        https: false, // Never use HTTPS locally
         hmr: {
             host: '192.168.1.10',
-            protocol: 'http',
+            protocol: 'ws',
         },
-        // Add CORS configuration
         cors: {
-            origin: 'http://192.168.1.10:8000',
+            origin: '*', // Allow all origins
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             credentials: true,
         },
-        // Add headers
         headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
             'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
-        }
+        },
     },
     esbuild: {
         jsx: 'automatic',

@@ -28,6 +28,7 @@ use App\Http\Controllers\StaffMessagesController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserlogController;
 
+
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
@@ -84,6 +85,11 @@ Route::middleware(['admin'])->group(function () {
 
     //Promotions
     Route::get('/admin/promotions', [AdminPromotionsController::class, 'index'])->name('admin.promotions');
+
+    //Expenses
+    Route::get('/api/expenses', [AdminExpensesController::class, 'getExpenses'])->name('expenses.get');
+    Route::delete('/api/expenses/{id}', [AdminExpensesController::class, 'destroy'])->name('expenses.destroy');
+   
 });
 
 Route::middleware(['staff'])->group(function () {
@@ -99,9 +105,12 @@ Route::middleware(['staff'])->group(function () {
 
     //Expenses
     Route::get('/staff/expenses', [StaffExpensesController::class, 'index'])->name('staff.expenses');
+    Route::post('/staff/expenses', [StaffExpensesController::class, 'store'])->name('staff.expenses.store');
     
     //Cook
     Route::get('/staff/cook', [StaffCookController::class, 'index'])->name('staff.cook');
+    Route::post('/staff/cook/save', [StaffCookController::class, 'save'])->name('staff.cook.save');
+    Route::get('/staff/cook/get-cooked', [StaffCookController::class, 'getCookedProducts'])->name('staff.cook.getCooked');
 
     //Transactions
     Route::get('/staff/transactions', [StaffTransactionController::class, 'index'])->name('staff.transactions');
@@ -111,11 +120,20 @@ Route::middleware(['staff'])->group(function () {
 
     //Messages
     Route::get('/staff/messages', [StaffMessagesController::class, 'index'])->name('staff.messages');
+
+    //Products
+    Route::get('/api/staff/products', [StaffProductController::class, 'getProducts'])->name('staff.products');
+    
+    //Inventory
+    Route::get('/api/staff/inventory', [StaffInventoryController::class, 'getInventory'])->name('staff.inventory');
+
 });
 
 Route::post('/userlog/login', [UserlogController::class, 'logIn']);
 Route::post('/userlog/logout', [UserlogController::class, 'logOut']);
 Route::get('/userlogs', [UserlogController::class, 'index']);
+
+
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

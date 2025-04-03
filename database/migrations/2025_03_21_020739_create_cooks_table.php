@@ -16,6 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('product_id');
             $table->integer('cook_available')->default(0);
             $table->integer('cook_leftover')->default(0);
+            $table->date('date');
             $table->timestamps();
             $table->foreign('product_id')->references('product_id')->on('products')->onDelete('cascade');
         });

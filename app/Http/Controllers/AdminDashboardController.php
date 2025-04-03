@@ -36,19 +36,22 @@ class AdminDashboardController extends Controller
         }
     }
 
-    public function getSalesData()
+    public function getSalesData(Request $request)
     {
         try {
+            $month = $request->query('month');
+            $year = $request->query('year');
+
             $salesData = Order::selectRaw('DATE(created_at) as date, SUM(order_total) as sales')
+                ->when($month, function ($query, $month) {
+                    $query->whereMonth('created_at', $month);
+                })
+                ->when($year, function ($query, $year) {
+                    $query->whereYear('created_at', $year);
+                })
                 ->groupBy('date')
                 ->orderBy('date')
                 ->get();
-
-            // Format the date to ensure it's in a valid format (Y-m-d)
-            $salesData = $salesData->map(function ($item) {
-                $item->date = date('Y-m-d', strtotime($item->date));
-                return $item;
-            });
 
             return response()->json($salesData);
         } catch (\Exception $e) {
@@ -57,12 +60,21 @@ class AdminDashboardController extends Controller
         }
     }
 
-    public function getProductSalesData()
+    public function getProductSalesData(Request $request)
     {
         try {
+            $month = $request->query('month');
+            $year = $request->query('year');
+
             $data = DB::table('products')
                 ->join('orders', 'products.product_id', '=', 'orders.product_id')
                 ->select('products.product_name', DB::raw('SUM(orders.order_total) as total_sales'))
+                ->when($month, function ($query, $month) {
+                    $query->whereMonth('orders.created_at', $month);
+                })
+                ->when($year, function ($query, $year) {
+                    $query->whereYear('orders.created_at', $year);
+                })
                 ->groupBy('products.product_id', 'products.product_name')
                 ->orderBy('total_sales', 'desc')
                 ->get();
@@ -74,24 +86,38 @@ class AdminDashboardController extends Controller
         }
     }
 
-    public function paymentMethodPercentages()
+    public function paymentMethodPercentages(Request $request)
     {
-        $paymentMethods = ['cash', 'gcash', 'foodpanda', 'grabfood'];
-        $results = \DB::table('orders')
-            ->select('order_payment_method', \DB::raw('COUNT(*) as count'))
-            ->whereIn('order_payment_method', $paymentMethods)
-            ->groupBy('order_payment_method')
-            ->pluck('count', 'order_payment_method');
-            
-        $total = array_sum($results->toArray());
-        
-        $data = [];
-        foreach ($paymentMethods as $method) {
-             $count = isset($results[$method]) ? $results[$method] : 0;
-             $percentage = $total > 0 ? ($count / $total) * 100 : 0;
-             $data[$method] = ['count' => $count, 'percentage' => $percentage];
+        try {
+            $month = $request->query('month');
+            $year = $request->query('year');
+
+            $paymentMethods = ['cash', 'gcash', 'foodpanda', 'grabfood'];
+            $results = DB::table('orders')
+                ->select('order_payment_method', DB::raw('COUNT(*) as count'))
+                ->when($month, function ($query, $month) {
+                    $query->whereMonth('created_at', $month);
+                })
+                ->when($year, function ($query, $year) {
+                    $query->whereYear('created_at', $year);
+                })
+                ->whereIn('order_payment_method', $paymentMethods)
+                ->groupBy('order_payment_method')
+                ->pluck('count', 'order_payment_method');
+
+            $total = array_sum($results->toArray());
+
+            $data = [];
+            foreach ($paymentMethods as $method) {
+                $count = isset($results[$method]) ? $results[$method] : 0;
+                $percentage = $total > 0 ? ($count / $total) * 100 : 0;
+                $data[$method] = ['count' => $count, 'percentage' => $percentage];
+            }
+
+            return response()->json($data);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching payment percentages: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch payment percentages'], 500);
         }
-        
-        return response()->json($data);
     }
 }

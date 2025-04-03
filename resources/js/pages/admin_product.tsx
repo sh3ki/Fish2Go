@@ -993,7 +993,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                       Image
                     </th>
                     <th 
-                      className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-76 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "product_name" ? "bg-gray-600" : ""}`}
+                      className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-80 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "product_name" ? "bg-gray-600" : ""}`}
                       onClick={() => handleSortOption("product_name", sortField === "product_name" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
                     >
                       <div className="flex items-center justify-center">
@@ -1044,6 +1044,11 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                     </th>
                     <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-30 bg-gray-700">
                       Actions
+                    </th>
+                    <th 
+                      className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700"
+                      style={{ width: '1rem', minWidth: '1rem', maxWidth: '1rem' }}
+                    >
                     </th>
                   </tr>
                 </thead>

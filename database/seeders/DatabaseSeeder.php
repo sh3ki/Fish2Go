@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,6 +13,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        DB::table('users')->truncate();
+        DB::table('categories')->truncate();
+        DB::table('products')->truncate();
+        DB::table('orders')->truncate();
+        DB::table('cooks')->truncate();
+
         User::factory()->create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
@@ -27,13 +34,11 @@ class DatabaseSeeder extends Seeder
 
         $this->call(CategorySeeder::class);
 
-        // $this->call(ProductSeeder::class);
+        $this->call(ProductSeeder::class);
 
-        // $this->call(OrderSeeder::class);
+        $this->call(OrderSeeder::class);
 
-        // $this->call(OrderItemSeeder::class);
-
-        // $this->call(ReviewSeeder::class);
+        $this->call(CookSeeder::class);
 
         // $this->call(DeliverySeeder::class);
 

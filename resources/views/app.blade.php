@@ -6,15 +6,13 @@
         
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <link rel="icon" href="{{ asset('images/f2g_logo_white.png') }}" type="image/x-icon">
-        <!-- other head elements -->
-        {{-- Inline script to detect system dark mode preference and apply it immediately --}}
+        
+        {{-- Inline script to detect system dark mode preference --}}
         <script>
             (function() {
                 const appearance = '{{ $appearance ?? "system" }}';
-
                 if (appearance === 'system') {
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
                     if (prefersDark) {
                         document.documentElement.classList.add('dark');
                     }
@@ -22,12 +20,11 @@
             })();
         </script>
 
-        {{-- Inline style to set the HTML background color based on our theme in app.css --}}
+        {{-- Inline style for theme colors --}}
         <style>
             html {
                 background-color: oklch(1 0 0);
             }
-
             html.dark {
                 background-color: oklch(0.145 0 0);
             }
@@ -39,8 +36,30 @@
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
         @routes
-        @viteReactRefresh
-        @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
+
+        {{-- Simple version that works in all scenarios --}}
+        @php
+            $isNgrokRequest = strpos(request()->getHost(), 'ngrok-free.app') !== false;
+            $viteUrl = $isNgrokRequest ? env('NGROK_VITE_URL') : 'http://192.168.1.10:5173';
+        @endphp
+
+        @if($isNgrokRequest)
+            {{-- Plain script and link tags for ngrok --}}
+            <script type="module" src="{{ $viteUrl }}/@vite/client"></script>
+            <script type="module" src="{{ $viteUrl }}/resources/js/app.tsx"></script>
+            <link rel="stylesheet" href="{{ $viteUrl }}/resources/css/app.css">
+            @if(isset($page['component']))
+                <script type="module" src="{{ $viteUrl }}/resources/js/pages/{{ $page['component'] }}.tsx"></script>
+            @endif
+        @else
+            {{-- Standard Vite for local development --}}
+            @viteReactRefresh
+            @vite(['resources/css/app.css', 'resources/js/app.tsx'])
+            @if(isset($page['component']))
+                @vite("resources/js/pages/{$page['component']}.tsx")
+            @endif
+        @endif
+        
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
