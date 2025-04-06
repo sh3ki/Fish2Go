@@ -199,14 +199,15 @@ export default function POS() {
     };
 
     const addToOrder = (product) => {
-        const availableStock = parseInt(product.product_qty);
+        const stockAvailable = parseInt(product.product_qty) > 0;
         
-        if (availableStock <= 0) {
+        if (!stockAvailable) {
             setErrorMessage("No stock available for this item.");
             setTimeout(() => setErrorMessage(null), 3000);
             return;
         }
 
+        // Update available products with special handling for grilled products
         setAvailableProducts(prev => {
             return prev.map(p => {
                 if (p.product_id === product.product_id) {
@@ -272,6 +273,7 @@ export default function POS() {
             }
         }
 
+        // Update available products
         setAvailableProducts(prev => {
             return prev.map(p => {
                 if (p.product_id === id) {
@@ -284,6 +286,7 @@ export default function POS() {
             });
         });
 
+        // Update selected items
         setSelectedItems((prev) => {
             return prev.map((item) => {
                 if (item.product_id === id) {
@@ -382,6 +385,7 @@ export default function POS() {
                     return;
                 }
                 
+                // Update selected items
                 setSelectedItems(prev => {
                     return prev.map(item => {
                         if (item.product_id === focusedItemId) {
@@ -391,6 +395,7 @@ export default function POS() {
                     });
                 });
                 
+                // Update available products
                 setAvailableProducts(prev => {
                     return prev.map(p => {
                         if (p.product_id === focusedItemId) {
@@ -573,6 +578,8 @@ export default function POS() {
                 order_change: totalOrderChange,
                 order_status: 'confirmed',
                 order_payment_method: paymentMethod.toLowerCase(),
+                is_grilled: item.is_grilled || false,
+                cook_id: item.cook_id || null
             }));
 
             // Send order to server

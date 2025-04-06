@@ -139,6 +139,9 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
   const [productSalesFilterDate, setProductSalesFilterDate] = useState(getCurrentMonthYear());
   const [paymentFilterDate, setPaymentFilterDate] = useState(getCurrentMonthYear());
 
+  const [productSalesPage, setProductSalesPage] = useState(1);
+  const productsPerPage = 10;
+
   const handleDateChange = (setFilterDate) => (e) => {
     const { name, value } = e.target;
     setFilterDate((prev) => ({ ...prev, [name]: parseInt(value, 10) }));
@@ -211,6 +214,18 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
         });
     };
   }, [paymentFilterDate]);
+
+  const sortedProductSalesData = useMemo(() => {
+    return [...productSalesData].sort((a, b) => b.total_sales - a.total_sales);
+  }, [productSalesData]);
+
+  const paginatedProductSalesData = useMemo(() => {
+    const startIndex = (productSalesPage - 1) * productsPerPage;
+    const endIndex = startIndex + productsPerPage;
+    return sortedProductSalesData.slice(startIndex, endIndex);
+  }, [sortedProductSalesData, productSalesPage]);
+
+  const totalProductSalesPages = Math.ceil(sortedProductSalesData.length / productsPerPage);
 
   useEffect(() => {
     fetchSalesData();
@@ -488,7 +503,7 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
 
         {/* Product Sales Bar Chart */}
         <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
-          <div className="lg:col-span-4 bg-gray-300 dark:bg-gray-800 p-4 rounded-xl">
+          <div className="lg:col-span-4 bg-gray-300 dark:bg-gray-800 p-4 rounded-xl overflow-x-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
                 <PhilippinePeso className="w-5 h-5 text-purple-900 dark:text-purple-500" />
@@ -518,13 +533,29 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
                 </svg>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="min-w-full">
                 <Chart
-                  options={productSalesOptions}
-                  series={productSalesSeries}
+                  options={{
+                    ...productSalesOptions,
+                    xaxis: {
+                      categories: paginatedProductSalesData.map((data) => data.product_name),
+                      labels: { style: { colors: "#666" } },
+                    },
+                  }}
+                  series={[
+                    {
+                      name: "Total Sales",
+                      data: paginatedProductSalesData.map((data) => data.total_sales),
+                    },
+                  ]}
                   type="bar"
                   height={350}
-                  width={Math.max(155, productSalesData.length * 100)}
+                  width={Math.max(155, paginatedProductSalesData.length * 100)}
+                />
+                <Pagination
+                  currentPage={productSalesPage}
+                  totalPages={totalProductSalesPages}
+                  onPageChange={setProductSalesPage}
                 />
               </div>
             )}
@@ -572,7 +603,7 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
         </div>
 
         {/* Leftover Products Section */}
-        <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full">
+        <div className="bg-gray-200 dark:bg-gray-800 p-4 rounded-xl shadow-md w-full"></div>
           <div className="p-4 bg-gray-300 dark:bg-gray-800 rounded-xl w-full">
             <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
               <ClipboardList className="w-5 h-5 text-purple-900 dark:text-purple-500" />
@@ -597,7 +628,7 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
             </ul>
           </div>
         </div>
-      </div>
+ 
     </AppLayout>
   );
 }

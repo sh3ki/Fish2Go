@@ -63,11 +63,11 @@ Route::middleware(['admin'])->group(function () {
     
     //Inventory
     Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory');
-    Route::get('/admin/inventory/fetch', [AdminInventoryController::class, 'fetchInventory'])->name('admin.inventory.index');
+    Route::get('/admin/inventory/fetch', [AdminInventoryController::class, 'fetch'])->name('admin.inventory.fetch');
     Route::post('/admin/inventory/store', [AdminInventoryController::class, 'store'])->name('admin.inventory.store');
     Route::put('/admin/inventory/{id}', [AdminInventoryController::class, 'update'])->name('admin.inventory.update');
     Route::delete('/admin/inventory/{id}', [AdminInventoryController::class, 'destroy'])->name('admin.inventory.destroy');
-
+   
     //Notifications
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);

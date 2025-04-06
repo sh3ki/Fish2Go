@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         DB::table('products')->truncate();
         DB::table('orders')->truncate();
         DB::table('cooks')->truncate();
+        DB::table('inventory')->truncate();
 
         User::factory()->create([
             'name' => 'Admin User',
@@ -39,6 +40,8 @@ class DatabaseSeeder extends Seeder
         $this->call(OrderSeeder::class);
 
         $this->call(CookSeeder::class);
+
+        $this->call(InventorySeeder::class);
 
         // $this->call(DeliverySeeder::class);
 

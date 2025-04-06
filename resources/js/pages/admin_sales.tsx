@@ -76,7 +76,7 @@ export default function AdminSales() {
               <table className="min-w-full divide-y divide-gray-700 border-collapse">
                 <thead className="bg-gray-700">
                   <tr>
-                    <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">ID</th>
+                    <th className="px-3 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">ID</th>
                     <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Product ID</th>
                     <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Quantity</th>
                     <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Subtotal</th>

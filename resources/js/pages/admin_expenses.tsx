@@ -141,7 +141,7 @@ export default function AdminExpenses() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Amount</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Added By</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -156,7 +156,7 @@ export default function AdminExpenses() {
                     <tr key={expense.id}>
                       <td className="px-4 py-3 text-gray-300">{expense.title}</td>
                       <td className="px-4 py-3 text-gray-300">{expense.description || "-"}</td>
-                      <td className="px-4 py-3 text-gray-300">${parseFloat(expense.amount.toString()).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-gray-300">₱{parseFloat(expense.amount.toString()).toFixed(2)}</td>
                       <td className="px-4 py-3 text-gray-300">{new Date(expense.date).toLocaleDateString()}</td>
                       <td className="px-4 py-3 text-gray-300">{expense.user?.name || "Unknown"}</td>
                       <td className="px-4 py-3 text-gray-300">

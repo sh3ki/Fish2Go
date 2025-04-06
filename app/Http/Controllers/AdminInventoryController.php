@@ -7,55 +7,95 @@ use Illuminate\Http\Request;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class AdminInventoryController extends Controller
 {
-
-    
     public function index()
     {
-        $inventory = Inventory::latest()->paginate(10); // Paginate latest 10 entries
-    
-        // Cache the 10 newest items for 7 days
-        $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
-            return Inventory::latest()->take(10)->get();
-        });
-    
-        return Inertia::render('admin_inventory', [
-            'inventory' => [
-                'data' => $inventory->items(), // Ensure it's an array
-                'current_page' => $inventory->currentPage(),
-                'last_page' => $inventory->lastPage(),
-            ],
-            'newestItems' => $newestItems,
-        ]);
+        try {
+            // Get all inventory items instead of paginating
+            $inventory = Inventory::latest()->get();
+        
+            // Cache the 10 newest items for 7 days
+            $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
+                return Inventory::latest()->take(10)->get();
+            });
+        
+            return Inertia::render('admin_inventory', [
+                'inventory' => [
+                    'data' => $inventory, // Return all inventory items
+                    'total' => $inventory->count(),
+                ],
+                'newestItems' => $newestItems,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in inventory index: ' . $e->getMessage());
+            return Inertia::render('admin_inventory', [
+                'inventory' => [
+                    'data' => [],
+                    'total' => 0,
+                ],
+                'newestItems' => [],
+                'flash' => [
+                    'error' => 'Failed to load inventory data.'
+                ]
+            ]);
+        }
     }
 
-    public function fetchInventory()
+    // Updated fetch method to match ProductController's implementation
+    public function fetch(Request $request)
     {
-        $inventory = Inventory::latest()->paginate(10);
+        try {
+            // Get search term if provided
+            $search = $request->query('search');
+            
+            // Start building the query
+            $query = Inventory::latest();
+            
+            // Apply search filter if provided
+            if ($search) {
+                $query->where('inventory_name', 'LIKE', "%{$search}%");
+            }
+            
+            // Execute query and get all inventory items
+            $inventory = $query->get();
+            
+            // Transform inventory data similar to how products are transformed
+            $inventoryData = $inventory->map(function ($item) {
+                return [
+                    'inventory_id' => $item->inventory_id,
+                    'inventory_name' => $item->inventory_name,
+                    'inventory_qty' => $item->inventory_qty,
+                    'inventory_price' => $item->inventory_price,
+                    'inventory_image' => $item->inventory_image ? $item->inventory_image : null,
+                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
+            
+            // Get newest items
+            $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
+                return Inventory::latest()->take(10)->get();
+            });
 
-        $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
-            return Inventory::latest()->take(10)->get();
-        });
-
-        return response()->json([
-            'inventory' => [
-                'data' => $inventory->getCollection()->map(function ($item) {
-                    return [
-                        'inventory_id' => $item->inventory_id,
-                        'inventory_name' => $item->inventory_name,
-                        'inventory_qty' => $item->inventory_qty,
-                        'inventory_price' => $item->inventory_price,
-                        'inventory_image' => $item->inventory_image,
-                        'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
-                    ];
-                }),
-                'current_page' => $inventory->currentPage(),
-                'last_page' => $inventory->lastPage(),
-            ],
-            'newestItems' => $newestItems,
-        ]);
+            return response()->json([
+                'inventory' => [
+                    'data' => $inventoryData,
+                    'total' => $inventory->count(),
+                ],
+                'newestItems' => $newestItems,
+                'status' => 'success'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error in fetchInventory: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to fetch inventory data',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
     }
 
     public function store(Request $request) {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,9 @@ import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css';
-import { Filter, Edit, Trash2, CircleX, Loader2, Plus, ArrowUp, ArrowDown, ArrowDownUp, ArrowDownZA, ArrowUpAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
+import { Filter, CircleX, Loader2, Plus, ArrowUp, ArrowDown, ArrowDownUp, ArrowDownZA, ArrowUpAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
 import SearchBar from "@/components/ui/search-bar";
+import ActionButtons from "@/components/ui/action-buttons";
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -35,8 +36,6 @@ interface Product {
 interface PageProps {
   products: {
     data: Product[];
-    current_page: number;
-    last_page: number;
     total: number;
   };
   categories: Category[];
@@ -69,14 +68,10 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [productList, setProductList] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [currentPage, setCurrentPage] = useState(products?.current_page || 1);
-  const [lastPage, setLastPage] = useState(products?.last_page || 1);
-  const [totalProducts, setTotalProducts] = useState(products?.total || 0);
   const [isLoading, setIsLoading] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [activeCategory, setActiveCategory] = useState<number | "all" | "available">("all");
   const [categoryList, setCategoryList] = useState<Category[]>(categories || []);
-  const [hasMore, setHasMore] = useState(true);
   const [imageTimestamps, setImageTimestamps] = useState<Record<number, number>>({});
   
   // New state for Add Category modal
@@ -109,7 +104,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     }
   }, [flash]);
 
-  // Apply default sorting when component loads
+  // Initialize product list from props
   useEffect(() => {
     if (products?.data && products.data.length > 0) {
       const sortedProducts = [...products.data].sort((a, b) => a.product_id - b.product_id);
@@ -325,7 +320,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
             }
           } else {
             // Fallback to full refresh if response doesn't contain the updated product
-            fetchProducts(currentPage, searchTerm, activeCategory);
+            fetchProducts(searchTerm, activeCategory);
           }
           
           // Close modal and reset form
@@ -395,7 +390,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                 try {
                   await axios.delete(route("admin.products.destroy", productId));
                   toast.success("Product deleted successfully!");
-                  fetchProducts(currentPage, searchTerm, activeCategory);
+                  fetchProducts(searchTerm, activeCategory);
                 } catch (error) {
                   const errorMsg =
                     error.response?.status === 404
@@ -457,7 +452,6 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
 
   const filterByCategory = (categoryId: number | "all" | "available") => {
     setActiveCategory(categoryId);
-    setCurrentPage(1); // Reset to first page
     
     // Apply category filter to current product list
     let filtered = [...productList];
@@ -503,12 +497,12 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     setSearchTerm(term);
   };
 
-  const fetchProducts = async (page: number, search: string = "", category: number | "all" | "available" = "all") => {
+  const fetchProducts = useCallback(async (search: string = "", category: number | "all" | "available" = "all") => {
     if (isLoading) return;
 
     setIsLoading(true);
     try {
-      let url = route("admin.products.fetch", { page });
+      let url = route("admin.products.fetch");
       
       // Add query parameters for search and category
       const params = new URLSearchParams();
@@ -519,7 +513,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
         url += `?${params.toString()}`;
       }
       
-      console.log(`Fetching products for page ${page}`);
+      console.log(`Fetching all products`);
       
       const response = await axios.get(url);
 
@@ -528,67 +522,28 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
       }
 
       let newProducts = response.data.products.data ?? [];
-
-      // Create a set of existing product IDs to avoid duplicates
-      const existingIds = new Set(productList.map(p => p.product_id));
       
-      // Filter out duplicates from new products
-      newProducts = newProducts.filter(product => !existingIds.has(product.product_id));
-
-      if (page === 1) {
-        setProductList(newProducts);
-        
-        // Apply filters and sorting
-        let filtered = [...newProducts];
-        
-        if (category === "available") {
-          filtered = filtered.filter(product => product.product_qty > 0);
-        } else if (category !== "all") {
-          filtered = filtered.filter(product => product.category_id === category);
-        }
-        
-        if (searchTerm.trim() !== "") {
-          const tokens = searchTerm.toLowerCase().split(/\s+/).filter(t => t.length > 0);
-          filtered = filtered.filter(product => 
-            tokens.every(token => product.product_name.toLowerCase().includes(token))
-          );
-        }
-        
-        const sorted = sortProductsCopy(filtered);
-        setFilteredProducts(sorted);
-      } else {
-        // Only if we have new products to add
-        if (newProducts.length > 0) {
-          const updatedProducts = [...productList, ...newProducts];
-          setProductList(updatedProducts);
-          
-          // Apply any active filters and sorting to the updated list
-          let filtered = updatedProducts;
-          
-          if (category === "available") {
-            filtered = filtered.filter(product => product.product_qty > 0);
-          } else if (category !== "all") {
-            filtered = filtered.filter(product => product.category_id === category);
-          }
-          
-          if (searchTerm.trim() !== "") {
-            const tokens = searchTerm.toLowerCase().split(/\s+/).filter(t => t.length > 0);
-            filtered = filtered.filter(product => 
-              tokens.every(token => product.product_name.toLowerCase().includes(token))
-            );
-          }
-          
-          const sorted = sortProductsCopy(filtered);
-          setFilteredProducts(sorted);
-        }
+      // Replace all products and apply sorting
+      setProductList(newProducts);
+      
+      // Apply filters and sorting
+      let filtered = [...newProducts];
+      
+      if (category === "available") {
+        filtered = filtered.filter(product => product.product_qty > 0);
+      } else if (category !== "all") {
+        filtered = filtered.filter(product => product.category_id === category);
       }
       
-      setCurrentPage(response.data.products.current_page ?? 1);
-      setLastPage(response.data.products.last_page ?? 1);
-      setTotalProducts(response.data.products.total ?? 0);
+      if (searchTerm.trim() !== "") {
+        const tokens = searchTerm.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+        filtered = filtered.filter(product => 
+          tokens.every(token => product.product_name.toLowerCase().includes(token))
+        );
+      }
       
-      // Check if we have more products to load
-      setHasMore(response.data.products.current_page < response.data.products.last_page);
+      const sorted = sortProductsCopy(filtered);
+      setFilteredProducts(sorted);
       
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -596,7 +551,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [sortProductsCopy, searchTerm]);
 
   const fetchCategories = async () => {
     try {
@@ -690,32 +645,31 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     }
   }, [isModalOpen]);
 
-  const loadMoreProducts = () => {
-    if (!isLoading && hasMore) {
-      fetchProducts(currentPage + 1, searchTerm, activeCategory);
-    }
-  };
-
-  // Setup scroll event handler for the table container
+  // Update filtered products when source data or filtering criteria change
   useEffect(() => {
-    const tableContainer = tableRef.current;
-    if (!tableContainer) return;
-
-    const handleScroll = () => {
-      // Check if we've scrolled near the bottom
-      const { scrollTop, scrollHeight, clientHeight } = tableContainer;
+    if (productList.length > 0) {
+      let filtered = [...productList];
       
-      // If we're within 200px of the bottom, load more
-      if (scrollTop + clientHeight >= scrollHeight - 200 && !isLoading && hasMore) {
-        loadMoreProducts();
+      // Apply category filter
+      if (activeCategory === "available") {
+        filtered = filtered.filter(product => product.product_qty > 0);
+      } else if (activeCategory !== "all") {
+        filtered = filtered.filter(product => product.category_id === activeCategory);
       }
-    };
-
-    tableContainer.addEventListener('scroll', handleScroll);
-    return () => {
-      tableContainer.removeEventListener('scroll', handleScroll);
-    };
-  }, [currentPage, isLoading, hasMore, searchTerm, activeCategory]);
+      
+      // Apply search filter
+      if (searchTerm.trim() !== "") {
+        const tokens = searchTerm.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+        filtered = filtered.filter(product => 
+          tokens.every(token => product.product_name.toLowerCase().includes(token))
+        );
+      }
+      
+      // Apply current sorting
+      const sorted = sortProductsCopy(filtered);
+      setFilteredProducts(sorted);
+    }
+  }, [activeCategory, searchTerm, productList]);
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -1060,6 +1014,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
               ref={tableRef}
               className="overflow-y-auto"
               style={{ maxHeight: 'calc(100vh - 175px)' }}
+              key="product-table-body"
             >
               <table className="min-w-full divide-y divide-gray-700 border-collapse">
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
@@ -1158,18 +1113,10 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                                   {product.category_name}
                                 </td>
                                 <td className="px-1 py-1 text-center whitespace-nowrap space-x-2 w-30">
-                                  <button
-                                    onClick={() => openEditModal(product)}
-                                    className="inline-flex items-center justify-center p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 hover:text-blue-300 transition-colors"
-                                  >
-                                    <Edit size={15} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(product.product_id)}
-                                    className="inline-flex items-center justify-center p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-colors"
-                                  >
-                                    <Trash2 size={15} />
-                                  </button>
+                                  <ActionButtons 
+                                    onEdit={() => openEditModal(product)}
+                                    onDelete={() => handleDelete(product.product_id)}
+                                  />
                                 </td>
                               </tr>
                             ))}
@@ -1231,49 +1178,27 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                           <td className="px-1 py-1 text-center text-sm text-gray-300 w-26">
                             {product.category_name}
                           </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap space-x-2 w-30">
-                            <button
-                              onClick={() => openEditModal(product)}
-                              className="inline-flex items-center justify-center p-2 rounded-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 hover:text-blue-300 transition-colors"
-                            >
-                              <Edit size={15} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(product.product_id)}
-                              className="inline-flex items-center justify-center p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-colors"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                          <td className="px-1 py-1 text-center items-center whitespace-nowrap space-x-2 w-30">
+                            <ActionButtons 
+                              onEdit={() => openEditModal(product)}
+                              onDelete={() => handleDelete(product.product_id)}
+                            />
                           </td>
                         </tr>
                       ))
                     )
                   )}
                   
-                  {/* Improved loading indicator */}
-                  {isLoading && filteredProducts.length > 0 && (
-                    <tr>
-                      <td colSpan={9} className="px-6 py-4 text-center text-gray-400">
-                        <div className="flex justify-center items-center">
-                          <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                          <span>Loading page {currentPage + (hasMore ? 1 : 0)} of {lastPage}...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-        </div>
-      </div>
-
-      {/* Modal Implementation */}
-      {isModalOpen && (
-        <div className="fixed inset-0 flex items-start justify-center z-50 p-4">
-          {/* Semi-transparent overlay */}
-          <div 
+                  </tbody>              
+                  </table>            
+                  </div>          
+                  </div>                  
+                  </div>      </div>      
+                  {/* Modal Implementation */}      
+                  {isModalOpen && (        
+                    <div className="fixed inset-0 flex items-start justify-center z-50 p-4">          
+                    {/* Semi-transparent overlay */}          
+                    <div 
             className="absolute inset-0 bg-black/40" 
             onClick={() => setIsModalOpen(false)}
           ></div>
@@ -1432,7 +1357,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
           >
             <button 
               onClick={() => setShowAddCategoryModal(false)}
-              className="absolute top-3 right-3  z-[60] text-gray-400 hover:text-gray-300 transition-colors"
+              className="absolute top-3 right-3 z-[60] text-gray-400 hover:text-gray-300 transition-colors"
             >
               <CircleX size={20} />
             </button>
