@@ -5,10 +5,12 @@ import {
 } from "firebase/firestore";
 import StaffLayout from "@/components/staff/StaffLayout";
 import { Head } from "@inertiajs/react";
+import FullScreenPrompt from "@/components/staff/FullScreenPrompt"; // Import the component
 
 export default function StaffMessages() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const messagesEndRef = useRef(null);
   const staffUser = "Staff"; // Identify staff user
 
@@ -61,6 +63,9 @@ export default function StaffMessages() {
   return (
     <StaffLayout breadcrumbs={[{ title: "Messages", href: "/staff/messages" }]}>
       <Head title="Staff Messages" />
+      
+      <FullScreenPrompt onFullScreenChange={setIsFullScreen} />
+      
       <div className="flex flex-col items-center gap-4 rounded-xl p-4">
         <div className="p-4 bg-gray-800 rounded-xl w-full max-w-5xl">
           <h3 className="text-lg font-semibold text-white">Admin Messages</h3>

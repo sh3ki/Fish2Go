@@ -42,6 +42,7 @@ export function AppSidebar() {
         { title: "Expenses", url: "/admin/expenses", icon: HandCoins },
         { title: "Staff Management", url: "/admin/staffmanagement", icon: Users },
         { title: "Promotions", url: "/admin/promotions", icon: SquarePercent },
+        { title: "Summary", url: "/admin/summary", icon: SquarePercent },
         { 
             title: "Messages", 
             url: "/admin/messages", 

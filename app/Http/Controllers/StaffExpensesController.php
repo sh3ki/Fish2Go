@@ -1,15 +1,21 @@
 <?php
 
 namespace App\Http\Controllers;
-use inertia\inertia;
+use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Models\Expense;
 
 class StaffExpensesController extends Controller
 {
-    public function index ()
+    public function index()
     {
-        return Inertia::render('staff_expenses');
+        $expenses = Expense::where('user_id', auth()->id())
+            ->orderBy('created_at', 'desc') // Use 'created_at' to ensure the most recent entries are at the top
+            ->get();
+
+        return Inertia::render('staff_expenses', [
+            'expenses' => $expenses,
+        ]);
     }
 
     public function store(Request $request)
@@ -42,6 +48,4 @@ class StaffExpensesController extends Controller
             return redirect()->back()->with('error', 'Failed to save expense. Please try again.');
         }
     }
-
- 
 }

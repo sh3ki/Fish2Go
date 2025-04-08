@@ -7,17 +7,17 @@ import FullScreenPrompt from "@/components/staff/FullScreenPrompt";
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: "Transactions",
-        href: "/staff/transactions",
+        title: "SU",
+        href: "/staff/delivery",
     },
 ];
 
-export default function ExpensesPOS() {
+export default function DeliveryPOS() {
     const [isFullScreen, setIsFullScreen] = useState(false);
     
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
-            <Head title="Expenses" />
+            <Head title="Delivery" />
             
             <FullScreenPrompt onFullScreenChange={setIsFullScreen} />
             

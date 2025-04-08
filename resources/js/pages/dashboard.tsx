@@ -125,10 +125,10 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
   const [salesData, setSalesData] = useState([]);
   const [productSalesData, setProductSalesData] = useState([]);
   const [paymentData, setPaymentData] = useState({
-    cash: { count: 0, percentage: 0 },
-    gcash: { count: 0, percentage: 0 },
-    foodpanda: { count: 0, percentage: 0 },
-    grabfood: { count: 0, percentage: 0 },
+    cash: { count: 0, percentage: 0, total: 0 },
+    gcash: { count: 0, percentage: 0, total: 0 },
+    foodpanda: { count: 0, percentage: 0, total: 0 },
+    grabfood: { count: 0, percentage: 0, total: 0 },
   });
   const [paymentSeries, setPaymentSeries] = useState([]);
   const [salesLoading, setSalesLoading] = useState(true);
@@ -204,10 +204,10 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
         .catch((error) => {
           console.error("Error fetching payment percentages!", error);
           setPaymentData({
-            cash: { count: 0, percentage: 0 },
-            gcash: { count: 0, percentage: 0 },
-            foodpanda: { count: 0, percentage: 0 },
-            grabfood: { count: 0, percentage: 0 },
+            cash: { count: 0, percentage: 0, total: 0 },
+            gcash: { count: 0, percentage: 0, total: 0 },
+            foodpanda: { count: 0, percentage: 0, total: 0 },
+            grabfood: { count: 0, percentage: 0, total: 0 },
           });
           setPaymentSeries([]);
           setPaymentLoading(false);
@@ -347,10 +347,10 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
       foreColor: foreColor,
     },
     labels: [
-      `Cash (${paymentData.cash.count})`,
-      `Gcash (${paymentData.gcash.count})`,
-      `Foodpanda (${paymentData.foodpanda.count})`,
-      `Grabfood (${paymentData.grabfood.count})`,
+      `Cash (${paymentData.cash.count}, ₱${paymentData.cash.total.toLocaleString()})`,
+      `Gcash (${paymentData.gcash.count}, ₱${paymentData.gcash.total.toLocaleString()})`,
+      `Foodpanda (${paymentData.foodpanda.count}, ₱${paymentData.foodpanda.total.toLocaleString()})`,
+      `Grabfood (${paymentData.grabfood.count}, ₱${paymentData.grabfood.total.toLocaleString()})`,
     ],
     colors: ["#008FFB", "#00E396", "#FEB019", "#FF4560"],
     tooltip: {
@@ -362,7 +362,13 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
             paymentData.foodpanda.count,
             paymentData.grabfood.count,
           ];
-          return `${value.toFixed(1)}% (${counts[opts.seriesIndex]} orders)`;
+          const totals = [
+            paymentData.cash.total,
+            paymentData.gcash.total,
+            paymentData.foodpanda.total,
+            paymentData.grabfood.total,
+          ];
+          return `${value.toFixed(1)}% (${counts[opts.seriesIndex]} orders, ₱${totals[opts.seriesIndex].toLocaleString()})`;
         },
       },
     },
@@ -522,8 +528,7 @@ export default function Dashboard({ totalProducts, totalInventory, staffUsers })
                   <circle
                     className="opacity-25"
                     cx="12"
-                    cy="12"
-                    r="10" stroke="currentColor" strokeWidth="4"
+                    cy="12" r="10" stroke="currentColor" strokeWidth="4"
                   ></circle>
                   <path
                     className="opacity-75"

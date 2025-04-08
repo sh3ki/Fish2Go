@@ -24,6 +24,7 @@ use App\Http\Controllers\StaffCookController;
 use App\Http\Controllers\StaffTransactionController;
 use App\Http\Controllers\StaffDeliveryController;
 use App\Http\Controllers\StaffMessagesController;
+use App\Http\Controllers\StaffSummaryController;
 
 //Another Controllers
 use App\Http\Controllers\NotificationController;
@@ -105,7 +106,7 @@ Route::middleware(['staff'])->group(function () {
     Route::post('/staff/orders/store', [StaffOrderController::class, 'store'])->name('staff.orders.store');
 
     //Expenses
-    Route::get('/staff/expenses', [StaffExpensesController::class, 'index'])->name('staff.expenses');
+    Route::get('/staff/expenses', [StaffExpensesController::class, 'index'])->name('staff.expenses'); // Ensure this route exists
     Route::post('/staff/expenses', [StaffExpensesController::class, 'store'])->name('staff.expenses.store');
     
     //Cook
@@ -127,12 +128,15 @@ Route::middleware(['staff'])->group(function () {
     
     //Inventory
     Route::get('/api/staff/inventory', [StaffInventoryController::class, 'getInventory'])->name('staff.inventory');
+    Route::post('/api/staff/inventory/update', [StaffInventoryController::class, 'updateInventoryUsed'])->name('staff.inventory.update');
 
+     //Summary
+     Route::get('/staff/summary', [StaffSummaryController::class, 'index'])->name('staff.summary');
 });
 
-Route::post('/userlog/login', [UserlogController::class, 'logIn']);
-Route::post('/userlog/logout', [UserlogController::class, 'logOut']);
-Route::get('/userlogs', [UserlogController::class, 'index']);
+// Route::post('/userlog/login', [UserlogController::class, 'logIn']);
+// Route::post('/userlog/logout', [UserlogController::class, 'logOut']);
+// Route::get('/userlogs', [UserlogController::class, 'index']);
 
 
 

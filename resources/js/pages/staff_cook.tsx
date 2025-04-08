@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { X, AlertCircle, LayoutList, CheckCircle, CirclePlus, CircleMinus, CircleX } from "lucide-react";
 import SearchBar from "@/components/ui/search-bar";
 import axios from "axios";
+import FullScreenPrompt from "@/components/staff/FullScreenPrompt"; // Import the component
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: "Cook Station", href: "/staff/cook" }];
 
@@ -25,7 +26,6 @@ export default function CookStation() {
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [activeCategory, setActiveCategory] = useState("all");
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [showFullScreenPrompt, setShowFullScreenPrompt] = useState(true);
     const [grilledCategoryColor, setGrilledCategoryColor] = useState("#CCCCCC");
     const [focusedInputType, setFocusedInputType] = useState(null);
     const [focusedItemId, setFocusedItemId] = useState(null);
@@ -135,7 +135,6 @@ export default function CookStation() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().then(() => {
                 setIsFullScreen(true);
-                setShowFullScreenPrompt(false);
                 localStorage.setItem('staffFullScreenMode', 'true');
             }).catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message}`);
@@ -146,32 +145,16 @@ export default function CookStation() {
     useEffect(() => {
         const wasInFullScreen = localStorage.getItem('staffFullScreenMode') === 'true';
         if (wasInFullScreen) {
-            setShowFullScreenPrompt(false);
-        }
-
-        const handleUserInteraction = () => {
-            if (!document.fullscreenElement) {
-                toggleFullScreen();
-            }
-        };
-
-        if (!document.fullscreenElement) {
-            window.addEventListener('click', handleUserInteraction, { once: true });
-            window.addEventListener('keydown', handleUserInteraction, { once: true });
+            setIsFullScreen(true);
         }
 
         const handleFullscreenChange = () => {
             setIsFullScreen(!!document.fullscreenElement);
-            if (!document.fullscreenElement) {
-                setShowFullScreenPrompt(true);
-            }
         };
 
         document.addEventListener('fullscreenchange', handleFullscreenChange);
 
         return () => {
-            window.removeEventListener('click', handleUserInteraction);
-            window.removeEventListener('keydown', handleUserInteraction);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
     }, []);
@@ -602,21 +585,8 @@ export default function CookStation() {
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
             <Head title="Cook Station" />
-
-            {showFullScreenPrompt && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-                    <div className="bg-gray-800 p-6 rounded-xl max-w-md text-center">
-                        <h2 className="text-xl font-bold mb-4 text-white">Press anywhere or any key to enter full-screen mode</h2>
-                        <p className="text-gray-300 mb-6">For the best experience, this application works in full-screen mode.</p>
-                        <Button
-                            className="bg-blue-500 hover:bg-blue-600"
-                            onClick={toggleFullScreen}
-                        >
-                            Enter Full-Screen Mode
-                        </Button>
-                    </div>
-                </div>
-            )}
+            
+            <FullScreenPrompt onFullScreenChange={setIsFullScreen} />
 
             {errorMessage && (
                 <div className={`fixed top-4 right-4 z-50 p-3 rounded-md shadow-lg flex items-center animate-in fade-in slide-in-from-top-5 duration-300 ${errorMessage.includes("marked as") ? "bg-green-500" : "bg-red-500"} text-white`}>

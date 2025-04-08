@@ -5,6 +5,7 @@ import { Head } from "@inertiajs/react";
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { ArrowUp, ArrowDown, Loader2 } from "lucide-react";
+import FullScreenPrompt from "@/components/staff/FullScreenPrompt"; // Import the component
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -20,6 +21,7 @@ export default function ProductsPOS() {
     const [sortField, setSortField] = useState("product_id");
     const [sortDirection, setSortDirection] = useState("asc");
     const [searchQuery, setSearchQuery] = useState("");
+    const [isFullScreen, setIsFullScreen] = useState(false);
     const tableRef = useRef(null);
 
     useEffect(() => {
@@ -77,6 +79,9 @@ export default function ProductsPOS() {
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
             <Head title="Products" />
+            
+            <FullScreenPrompt onFullScreenChange={setIsFullScreen} />
+            
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-4">
                     <input

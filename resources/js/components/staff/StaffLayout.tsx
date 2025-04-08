@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase'; // Firestore DB
 import { cn } from '@/lib/utils';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { collection, getDocs, onSnapshot, query, setDoc, where } from 'firebase/firestore';
-import { CookingPot, CreditCard, Folder, HandCoins, LogOut, MessageCircleMore, PhilippinePeso, ShoppingCart, Truck } from 'lucide-react';
+import { CookingPot, CreditCard, Folder, HandCoins, LogOut, MessageCircleMore, NotebookPen, PhilippinePeso, ShoppingCart, Truck } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 
 interface StaffLayoutProps {
@@ -101,16 +101,20 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                     {page.url === '/staff/cook'
                         ? 'Cooks'
                         : page.url === '/staff/transactions'
-                          ? 'Transactions'
-                          : page.url === '/staff/expenses'
-                            ? 'Expenses'
-                            : page.url === '/staff/products'
-                              ? 'Products'
-                              : page.url === '/staff/inventory'
-                                ? 'Inventories'
-                                : page.url === '/staff/delivery'
-                                  ? 'Deliveries'
-                                  : 'Point of Sales'}
+                        ? 'Transactions'
+                        : page.url === '/staff/expenses'
+                        ? 'Expenses'
+                        : page.url === '/staff/products'
+                        ? 'Products'
+                        : page.url === '/staff/inventory'
+                        ? 'Inventories'
+                        : page.url === '/staff/delivery'
+                        ? 'Deliveries'
+                        : page.url === '/staff/messages'
+                        ? 'Messages'
+                        : page.url === '/staff/summary'
+                        ? 'Summary'
+                        : 'Point of Sales'}
                 </h1>
 
                 <DropdownMenu>
@@ -124,7 +128,13 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                             </Avatar>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-sidebar dark:bg-dark-sidebar w-40 text-sm text-white" align="end">
+                    <DropdownMenuContent
+                        className={cn(
+                            'bg-sidebar dark:bg-dark-sidebar w-40 text-sm',
+                            'text-black dark:text-white' // ✅ Adjust text color based on theme
+                        )}
+                        align="end"
+                    >
                         <button
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/pos' ? 'bg-gray-800' : ''}`}
                             onClick={() => router.get(route('staff.pos'))}
@@ -143,12 +153,12 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                         >
                             <PhilippinePeso size={18} /> Expenses
                         </button>
-                        <button
+                        {/* <button
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/products' ? 'bg-gray-800' : ''}`}
                             onClick={() => router.get(route('staff.products'))}
                         >
                             <ShoppingCart size={18} /> Products
-                        </button>
+                        </button> */}
                         <button
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/inventory' ? 'bg-gray-800' : ''}`}
                             onClick={() => router.get(route('staff.inventory'))}
@@ -166,6 +176,13 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                             onClick={() => router.get(route('staff.delivery'))}
                         >
                             <Truck size={18} /> Delivery
+                        </button>
+
+                        <button
+                            className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/summary' ? 'bg-gray-800' : ''}`}
+                            onClick={() => router.get(route('staff.summary'))}
+                        >
+                            <CreditCard size={18} /> Summary
                         </button>
 
                         {/* 🔥 Messages with Unread Count */}

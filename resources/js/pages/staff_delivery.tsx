@@ -2,6 +2,8 @@ import { PlaceholderPattern } from "@/components/ui/placeholder-pattern";
 import StaffLayout from "@/components/staff/StaffLayout"; 
 import { type BreadcrumbItem } from "@/types";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
+import FullScreenPrompt from "@/components/staff/FullScreenPrompt";
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -11,9 +13,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function DeliveryPOS() {
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
             <Head title="Delivery" />
+            
+            <FullScreenPrompt onFullScreenChange={setIsFullScreen} />
+            
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                     {[...Array(3)].map((_, index) => (

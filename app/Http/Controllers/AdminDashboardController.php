@@ -94,7 +94,7 @@ class AdminDashboardController extends Controller
 
             $paymentMethods = ['cash', 'gcash', 'foodpanda', 'grabfood'];
             $results = DB::table('orders')
-                ->select('order_payment_method', DB::raw('COUNT(*) as count'))
+                ->select('order_payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(order_total) as total'))
                 ->when($month, function ($query, $month) {
                     $query->whereMonth('created_at', $month);
                 })
@@ -103,15 +103,22 @@ class AdminDashboardController extends Controller
                 })
                 ->whereIn('order_payment_method', $paymentMethods)
                 ->groupBy('order_payment_method')
-                ->pluck('count', 'order_payment_method');
+                ->get();
 
-            $total = array_sum($results->toArray());
+            $totalCount = $results->sum('count');
 
             $data = [];
             foreach ($paymentMethods as $method) {
-                $count = isset($results[$method]) ? $results[$method] : 0;
-                $percentage = $total > 0 ? ($count / $total) * 100 : 0;
-                $data[$method] = ['count' => $count, 'percentage' => $percentage];
+                $methodData = $results->firstWhere('order_payment_method', $method);
+                $count = $methodData->count ?? 0;
+                $total = $methodData->total ?? 0;
+                $percentage = $totalCount > 0 ? ($count / $totalCount) * 100 : 0;
+
+                $data[$method] = [
+                    'count' => $count,
+                    'total' => $total,
+                    'percentage' => $percentage,
+                ];
             }
 
             return response()->json($data);

@@ -7,6 +7,7 @@ import { X, CirclePlus, CircleMinus, CircleX, AlertCircle, LayoutList } from "lu
 import axios from "axios";
 import { router } from "@inertiajs/react";
 import SearchBar from "@/components/ui/search-bar"; // Import SearchBar component
+import FullScreenPrompt from "@/components/staff/FullScreenPrompt"; // Import FullScreenPrompt component
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: "POS", href: "/staff/pos" }];
 
@@ -22,7 +23,6 @@ export default function POS() {
     const [discount, setDiscount] = useState(0);
     const [editableQty, setEditableQty] = useState(null); // Add this for editable quantity
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [showFullScreenPrompt, setShowFullScreenPrompt] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [filteredProducts, setFilteredProducts] = useState([]);  // Initialize as empty array
@@ -129,52 +129,10 @@ export default function POS() {
         }
     }, [searchTerm, availableProducts, activeCategory]);
 
-    // Full-screen functionality
-    const toggleFullScreen = () => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().then(() => {
-                setIsFullScreen(true);
-                setShowFullScreenPrompt(false);
-                localStorage.setItem('staffFullScreenMode', 'true');
-            }).catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-            });
-        }
+    // Handle fullscreen state changes from the FullScreenPrompt component
+    const handleFullScreenChange = (isActive: boolean) => {
+        setIsFullScreen(isActive);
     };
-
-    // Check if user previously entered full-screen mode
-    useEffect(() => {
-        const wasInFullScreen = localStorage.getItem('staffFullScreenMode') === 'true';
-        if (wasInFullScreen) {
-            setShowFullScreenPrompt(false);
-        }
-
-        const handleUserInteraction = () => {
-            if (!document.fullscreenElement) {
-                toggleFullScreen();
-            }
-        };
-
-        if (!document.fullscreenElement) {
-            window.addEventListener('click', handleUserInteraction, { once: true });
-            window.addEventListener('keydown', handleUserInteraction, { once: true });
-        }
-
-        const handleFullscreenChange = () => {
-            setIsFullScreen(!!document.fullscreenElement);
-            if (!document.fullscreenElement) {
-                setShowFullScreenPrompt(true);
-            }
-        };
-
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-        return () => {
-            window.removeEventListener('click', handleUserInteraction);
-            window.removeEventListener('keydown', handleUserInteraction);
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-        };
-    }, []);
 
     // Close category dropdown when clicking outside
     useEffect(() => {
@@ -606,7 +564,7 @@ export default function POS() {
                 change: paymentMethod === 'CASH' ? change : 0
             };
             
-            // Encode the receipt data for URL transmissionA
+            // Encode the receipt data for URL transmission
             const encodedData = encodeURIComponent(JSON.stringify(receiptData));
             
             // Order completed successfully
@@ -682,20 +640,8 @@ export default function POS() {
         <StaffLayout breadcrumbs={breadcrumbs}>
             <Head title="Point of Sales" />
 
-            {showFullScreenPrompt && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-                    <div className="bg-gray-800 p-6 rounded-xl max-w-md text-center">
-                        <h2 className="text-xl font-bold mb-4 text-white">Press anywhere or any key to enter full-screen mode</h2>
-                        <p className="text-gray-300 mb-6">For the best experience, this application works in full-screen mode.</p>
-                        <Button
-                            className="bg-blue-500 hover:bg-blue-600"
-                            onClick={toggleFullScreen}
-                        >
-                            Enter Full-Screen Mode
-                        </Button>
-                    </div>
-                </div>
-            )}
+            {/* Use the FullScreenPrompt component */}
+            <FullScreenPrompt onFullScreenChange={handleFullScreenChange} />
 
             {errorMessage && (
                 <div className="fixed top-4 right-4 z-50 bg-red-500 text-white p-3 rounded-md shadow-lg flex items-center animate-in fade-in slide-in-from-top-5 duration-300">
