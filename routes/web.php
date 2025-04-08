@@ -12,6 +12,7 @@ use App\Http\Controllers\AdminMessagesController;
 use App\Http\Controllers\AdminExpensesController;
 use App\Http\Controllers\AdminStaffManagementController;
 use App\Http\Controllers\AdminPromotionsController;
+use App\Http\Controllers\AdminInventoryUsedController;
 
 //Staff Controllers
 use App\Http\Controllers\StaffInventoryController;
@@ -67,7 +68,7 @@ Route::middleware(['admin'])->group(function () {
     Route::post('/admin/inventory/store', [AdminInventoryController::class, 'store'])->name('admin.inventory.store');
     Route::put('/admin/inventory/{id}', [AdminInventoryController::class, 'update'])->name('admin.inventory.update');
     Route::delete('/admin/inventory/{id}', [AdminInventoryController::class, 'destroy'])->name('admin.inventory.destroy');
-   
+
     //Notifications
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);

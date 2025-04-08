@@ -10,12 +10,15 @@ import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 import { confirmAlert } from "react-confirm-alert";
 import "react-confirm-alert/src/react-confirm-alert.css";
+import { router } from "@inertiajs/react";
 import { 
-  Filter, CircleX, Loader2, Plus, ArrowUp, ArrowDown, 
-  ArrowDownUp, ArrowDownZA, ArrowUpAZ, ArrowUp01, ArrowDown10,
+  CircleX, Loader2, Plus, ArrowUp, ArrowDown, 
+  ArrowUp01, ArrowDown10, ArrowUpAZ, ArrowDownZA,
   Search, Edit, Trash2
 } from "lucide-react";
 import SearchBar from "@/components/ui/search-bar";
+import FilterButton from "@/components/ui/filter-button";
+import SortButton from "@/components/ui/sort-button";
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -45,7 +48,6 @@ interface PageProps {
   newestItems: Inventory[];
 }
 
-// Action Buttons Component
 const ActionButtons = ({ onEdit, onDelete }) => (
   <div className="flex justify-center gap-1">
     <button
@@ -72,7 +74,6 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     price: "",
   });
 
-  // State variables
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Inventory | null>(null);
@@ -82,24 +83,14 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
   const [filteredInventory, setFilteredInventory] = useState<Inventory[]>([]);
   const [newestItemsList, setNewestItemsList] = useState(newestItems);
   const [isLoading, setIsLoading] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [imageTimestamps, setImageTimestamps] = useState<Record<number, number>>({});
-  
-  // Sorting state
+
   const [sortField, setSortField] = useState<string>("inventory_id");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [showSortModal, setShowSortModal] = useState(false);
-  const [groupBy, setGroupBy] = useState<string | null>(null);
-  
-  // Refs
-  const tableRef = useRef<HTMLDivElement>(null);
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
-  const filterModalRef = useRef<HTMLDivElement>(null);
-  const sortButtonRef = useRef<HTMLButtonElement>(null);
-  const sortModalRef = useRef<HTMLDivElement>(null);
 
-  // Display flash messages
+  const tableRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (flash?.success) {
       toast.success(flash.success);
@@ -109,7 +100,6 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     }
   }, [flash]);
 
-  // Initialize inventory list from props
   useEffect(() => {
     if (inventory?.data) {
       const sortedInventory = [...inventory.data].sort((a, b) => a.inventory_id - b.inventory_id);
@@ -118,7 +108,6 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     }
   }, [inventory]);
 
-  // Real-time newest items update
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -127,32 +116,20 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
       } catch (err) {
         console.error("Failed to update newest items:", err);
       }
-    }, 30000); // Update every 30 seconds
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Sort inventory when sort parameters change
   useEffect(() => {
     if (filteredInventory.length > 0) {
       const sorted = sortInventoryCopy(filteredInventory);
       setFilteredInventory(sorted);
     }
-  }, [sortField, sortDirection, groupBy]);
+  }, [sortField, sortDirection]);
 
-  // Create a copy of the sort function that doesn't mutate state
   const sortInventoryCopy = (inventoryToSort: Inventory[]) => {
     let sorted = [...inventoryToSort];
-    
-    // First apply grouping if selected
-    if (groupBy === "status") {
-      sorted.sort((a, b) => {
-        const statusA = getStatusText(a.inventory_qty);
-        const statusB = getStatusText(b.inventory_qty);
-        return statusA.localeCompare(statusB);
-      });
-    }
-    
-    // Then apply sorting within groups
+
     if (sortField === "inventory_id") {
       sorted = stableSort(sorted, (a, b) => 
         sortDirection === "asc" ? a.inventory_id - b.inventory_id : b.inventory_id - a.inventory_id
@@ -180,11 +157,10 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
         return sortDirection === "asc" ? totalA - totalB : totalB - totalA;
       });
     }
-    
+
     return sorted;
   };
 
-  // Helper function for stable sorting within groups
   const stableSort = (array: Inventory[], compareFn: (a: Inventory, b: Inventory) => number) => {
     return array.map((item, index) => ({ item, index }))
       .sort((a, b) => {
@@ -194,7 +170,6 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
       .map(({ item }) => item);
   };
 
-  // Get user-friendly status text based on quantity
   const getStatusText = (qty: number): string => {
     if (qty >= 30) return "High Stock";
     if (qty >= 10) return "In Stock";
@@ -203,11 +178,10 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     return "Backorder";
   };
 
-  const handleSortOption = (field: string, direction: "asc" | "desc", group: string | null = groupBy) => {
+  const handleSortOption = (field: string, direction: "asc" | "desc") => {
     setSortField(field);
     setSortDirection(direction);
-    setGroupBy(group);
-    setShowSortModal(false);
+    setFilteredInventory(sortInventoryCopy(filteredInventory));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,15 +216,14 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
       if (data.item_image) {
         formData.append("item_image", data.item_image);
       }
-      
+
       if (isEditMode && selectedItem) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
         const itemId = selectedItem.inventory_id;
         const updateUrl = `/admin/inventory/${itemId}`;
-        
-        // Append method override for Laravel method spoofing
+
         formData.append("_method", "PUT");
-        
+
         await axios.post(updateUrl, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -261,16 +234,14 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
           withCredentials: true,
         });
         toast.success("Inventory item updated successfully!");
-        
-        // Update image timestamp for cache busting if image was uploaded
+
         if (data.item_image) {
           setImageTimestamps(prev => ({
             ...prev,
             [itemId]: Date.now()
           }));
         }
-        
-        // Force reload all inventory after edit - just like products page
+
         await fetchInventoryData();
       } else {
         const response = await axios.post(route("admin.inventory.store"), formData, {
@@ -279,11 +250,10 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
           },
         });
         toast.success("Inventory item added successfully!");
-        
-        // Force reload all inventory after adding a new item - just like products page
+
         await fetchInventoryData();
       }
-      
+
       reset();
       setPreviewImage(null);
       setIsModalOpen(false);
@@ -315,8 +285,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                     route("admin.inventory.destroy", inventoryId)
                   );
                   toast.success("Inventory item deleted successfully!");
-                  
-                  // Force reload all inventory after deletion - just like products page
+
                   await fetchInventoryData();
                 } catch (error) {
                   toast.error(
@@ -362,24 +331,12 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     setIsModalOpen(true);
   };
 
-  const toggleFilterModal = () => {
-    setShowFilterModal(prev => !prev);
-    if (showSortModal) setShowSortModal(false);
-  };
-
-  const toggleSortModal = () => {
-    setShowSortModal(prev => !prev);
-    if (showFilterModal) setShowFilterModal(false);
-  };
-
   const filterByStatus = (status: string) => {
     setActiveFilter(status);
-    
-    // Apply status filter to current inventory list
+
     let filtered = [...inventoryList];
-    
+
     if (status === "available") {
-      // Filter items with quantity > 0
       filtered = filtered.filter(item => item.inventory_qty > 0);
     } else if (status === "highstock") {
       filtered = filtered.filter(item => item.inventory_qty >= 30);
@@ -392,25 +349,19 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     } else if (status === "outofstock") {
       filtered = filtered.filter(item => item.inventory_qty === 0);
     }
-    
-    // Apply current search term if any
+
     if (searchTerm.trim() !== "") {
       filtered = filtered.filter(item => 
         item.inventory_name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
-    // Apply sorting to filtered results
+
     const sorted = sortInventoryCopy(filtered);
     setFilteredInventory(sorted);
-    
-    setShowFilterModal(false);
   };
 
-  const handleSearchResults = (results: Inventory[]) => {
-    // Apply current filter to search results
-    let filtered = results;
-    
+  const handleSearchResults = (results: any[]) => {
+    let filtered = results as Inventory[];
     if (activeFilter === "available") {
       filtered = filtered.filter(item => item.inventory_qty > 0);
     } else if (activeFilter === "highstock") {
@@ -424,8 +375,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     } else if (activeFilter === "outofstock") {
       filtered = filtered.filter(item => item.inventory_qty === 0);
     }
-    
-    // Apply current sorting rules
+
     const sorted = sortInventoryCopy(filtered);
     setFilteredInventory(sorted);
   };
@@ -443,26 +393,19 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
           'X-Requested-With': 'XMLHttpRequest',
         }
       });
-      
-      // Check for successful response
+
       if (!response.data || response.data.status === 'error') {
         throw new Error(response.data?.message || "Invalid response format");
       }
 
-      // Get the fresh data from the server
       const newInventory = response.data.inventory?.data || [];
       const newNewestItems = response.data.newestItems || [];
-      
-      // Some debug logging to help identify issues
-      console.log("Fetched inventory items:", newInventory.length);
-      
-      // Update both the master list and the newest items
+
       setInventoryList(newInventory);
       setNewestItemsList(newNewestItems);
-      
-      // Apply filters and sort based on current criteria
+
       let filtered = [...newInventory];
-      
+
       if (activeFilter === "available") {
         filtered = filtered.filter(item => item.inventory_qty > 0);
       } else if (activeFilter === "highstock") {
@@ -476,28 +419,19 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
       } else if (activeFilter === "outofstock") {
         filtered = filtered.filter(item => item.inventory_qty === 0);
       }
-      
+
       if (searchTerm.trim() !== "") {
         filtered = filtered.filter(item => 
           item.inventory_name.toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
-      
-      // Apply current sorting to refreshed data
+
       const sorted = sortInventoryCopy(filtered);
       setFilteredInventory(sorted);
-      
+
       return true;
     } catch (error) {
       console.error("Error fetching inventory:", error);
-      
-      // Add more detailed error logging
-      if (error.response) {
-        console.error("Response error data:", error.response.data);
-        console.error("Response error status:", error.response.status);
-        console.error("Response error headers:", error.response.headers);
-      }
-      
       toast.error("Failed to fetch inventory data. Please try again.");
       return false;
     } finally {
@@ -505,40 +439,27 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     }
   };
 
-  const fetchInventory = fetchInventoryData;
+  const filterOptions = [
+    { id: "available", name: "Available" },
+    { id: "highstock", name: "High Stock" },
+    { id: "instock", name: "In Stock" },
+    { id: "lowstock", name: "Low Stock" },
+    { id: "critical", name: "Critical Stock" },
+    { id: "outofstock", name: "Out of Stock" },
+  ];
 
-  // Close modals when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      // Handle filter modal
-      if (filterModalRef.current && 
-          !filterModalRef.current.contains(event.target) &&
-          filterButtonRef.current && 
-          !filterButtonRef.current.contains(event.target)) {
-        setShowFilterModal(false);
-      }
-      
-      // Handle sort modal
-      if (sortModalRef.current && 
-          !sortModalRef.current.contains(event.target) &&
-          sortButtonRef.current && 
-          !sortButtonRef.current.contains(event.target)) {
-        setShowSortModal(false);
-      }
-    }
+  const handleFilterChange = (filterId: string | number) => {
+    filterByStatus(filterId as string);
+  };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  const handleSortChange = (option: SortOption) => {
+    handleSortOption(option.field, option.direction);
+  };
 
-  // Update filtered inventory when source data or filtering criteria change
   useEffect(() => {
     if (inventoryList.length > 0) {
       let filtered = [...inventoryList];
-      
-      // Apply filter
+
       if (activeFilter === "available") {
         filtered = filtered.filter(item => item.inventory_qty > 0);
       } else if (activeFilter === "highstock") {
@@ -552,15 +473,13 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
       } else if (activeFilter === "outofstock") {
         filtered = filtered.filter(item => item.inventory_qty === 0);
       }
-      
-      // Apply search filter
+
       if (searchTerm.trim() !== "") {
         filtered = filtered.filter(item => 
           item.inventory_name.toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
-      
-      // Apply current sorting
+
       const sorted = sortInventoryCopy(filtered);
       setFilteredInventory(sorted);
     }
@@ -575,12 +494,8 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
       <Head title="Inventory" />
       <Toaster />
 
-      {/* Main Container - Fixed to viewport size */}
       <div className="flex flex-col rounded-xl p-2 h-[calc(100vh-64px)] overflow-hidden">
-  
-        {/* Header with Search & Filter */}
         <div className="p-1 pl-5 pb-2 pr-2 w-full">
-          {/* Search and Filter */}
           <div className="flex items-center gap-1.5 mb-2 bg-transparent rounded-lg justify-between">
             <div className="flex items-center gap-1.5 w-5/9">
               <SearchBar
@@ -592,255 +507,28 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                 className="input w-full bg-gray-700 p-1.5 pl-3 text-sm text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white-400"
               />
               
-              <div className="relative">
-                <Button
-                  ref={filterButtonRef}
-                  className="bg-gray-500 rounded-lg flex items-center justify-center h-8"
-                  style={{ aspectRatio: '1/1', padding: '0' }}
-                  onClick={toggleFilterModal}
-                >
-                  <Filter size={18} />
-                </Button>
-                
-                {showFilterModal && (
-                  <div 
-                    ref={filterModalRef}
-                    className="absolute right-0 p-0.5 w-40 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
-                  >
-                    <div className="py-0.5" role="menu" aria-orientation="vertical">
-                      <button
-                        onClick={() => filterByStatus("all")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeFilter === "all" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        All items
-                      </button>
-                      <button
-                        onClick={() => filterByStatus("available")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeFilter === "available" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        Available items
-                      </button>
-                      <button
-                        onClick={() => filterByStatus("highstock")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeFilter === "highstock" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        High stock
-                      </button>
-                      <button
-                        onClick={() => filterByStatus("instock")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeFilter === "instock" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        In stock
-                      </button>
-                      <button
-                        onClick={() => filterByStatus("lowstock")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeFilter === "lowstock" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        Low stock
-                      </button>
-                      <button
-                        onClick={() => filterByStatus("critical")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeFilter === "critical" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        Critical stock
-                      </button>
-                      <button
-                        onClick={() => filterByStatus("outofstock")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeFilter === "outofstock" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        Out of stock
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <FilterButton
+                options={filterOptions}
+                activeFilter={activeFilter}
+                onSelectFilter={handleFilterChange}
+                includeAvailable={false}
+              />
               
-              {/* Sort Button */}
-              <div className="relative">
-                <Button
-                  ref={sortButtonRef}
-                  className="bg-gray-500 rounded-lg flex items-center justify-center h-8"
-                  style={{ aspectRatio: '1/1', padding: '0' }}
-                  onClick={toggleSortModal}
-                >
-                  <ArrowDownUp size={18} />
-                </Button>
-                
-                {showSortModal && (
-                  <div 
-                    ref={sortModalRef}
-                    className="absolute right-0 p-0.5 w-52 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
-                  >
-                    <div className="py-0.5" role="menu" aria-orientation="vertical">
-                      {/* Sort options */}
-                      
-                      {/* ID sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm">By ID</div>
-                      <button
-                        onClick={() => handleSortOption("inventory_id", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "inventory_id" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Ascending
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("inventory_id", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "inventory_id" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Descending
-                      </button>
-                      
-                      {/* Name sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Name</div>
-                      <button
-                        onClick={() => handleSortOption("inventory_name", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "inventory_name" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUpAZ size={14} className="mr-2" /> A to Z
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("inventory_name", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "inventory_name" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDownZA size={14} className="mr-2" /> Z to A
-                      </button>
-                      
-                      {/* Price sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Price</div>
-                      <button
-                        onClick={() => handleSortOption("price", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "price" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Lowest first
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("price", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "price" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Highest first
-                      </button>
-                      
-                      {/* Quantity sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Quantity</div>
-                      <button
-                        onClick={() => handleSortOption("qty", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "qty" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Lowest first
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("qty", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "qty" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Highest first
-                      </button>
-                      
-                      {/* Total value sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Total Value</div>
-                      <button
-                        onClick={() => handleSortOption("total", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "total" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Lowest first
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("total", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "total" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Highest first
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <SortButton
+                options={[
+                  { field: "inventory_id", label: "ID", type: "numeric" },
+                  { field: "inventory_name", label: "Name", type: "text" },
+                  { field: "price", label: "Price", type: "numeric" },
+                  { field: "qty", label: "Quantity", type: "numeric" },
+                  { field: "total", label: "Total Value", type: "numeric" }
+                ]}
+                currentField={sortField}
+                currentDirection={sortDirection}
+                onSort={handleSortOption}
+              />
             </div>
             
-            {/* Add Inventory Button - Right Aligned */}
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
               <Button
                 onClick={openAddModal}
                 className="bg-gray-500 rounded-lg flex items-center justify-center h-8"
@@ -850,10 +538,8 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
               </Button>
             </div>
           </div>
-          
         </div>
 
-        {/* Table container - Keep header fixed while scrolling body */}
         <div 
           className="flex-1 p-0 pl-5 pr-2 relative"
           style={{ 
@@ -861,16 +547,14 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
             minHeight: '500px'
           }}
         >
-          {/* Table wrapper with fixed header and scrollable body */}
           <div className="relative overflow-x-auto bg-gray-900 rounded-lg shadow">
-            {/* Fixed header table */}
             <div className="sticky top-0 bg-gray-900 shadow-md">
               <table className="min-w-full divide-y divide-gray-700 border-collapse">
                 <thead className="bg-gray-700">
                   <tr>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-14 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "inventory_id" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("inventory_id", sortField === "inventory_id" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("inventory_id", sortField === "inventory_id" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         ID
@@ -884,7 +568,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-80 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "inventory_name" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("inventory_name", sortField === "inventory_name" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("inventory_name", sortField === "inventory_name" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Item Name
@@ -895,7 +579,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-20 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "price" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("price", sortField === "price" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("price", sortField === "price" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Price
@@ -906,7 +590,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-14 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "qty" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("qty", sortField === "qty" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("qty", sortField === "qty" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Qty
@@ -917,7 +601,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-24 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "total" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("total", sortField === "total" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("total", sortField === "total" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Total Value
@@ -942,195 +626,93 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
               </table>
             </div>
             
-            {/* Scrollable table body */}
             <div 
               ref={tableRef}
               className="overflow-y-auto"
               style={{ maxHeight: 'calc(100vh - 175px)' }}
-              key="inventory-table-body"
             >
               <table className="min-w-full divide-y divide-gray-700 border-collapse">
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
-                  {isLoading && filteredInventory.length === 0 ? (
+                  {isLoading ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-6 text-center text-gray-400">
                         <div className="flex justify-center items-center">
                           <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                          <span className="font-medium">Loading inventory...</span>
+                          <span className="font-medium">Loading inventory data...</span>
                         </div>
                       </td>
                     </tr>
                   ) : filteredInventory.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-6 text-center text-gray-400">
-                        <span className="font-medium">No inventory items found</span>
+                        <span className="font-medium">No inventory data found</span>
                       </td>
                     </tr>
                   ) : (
-                    // Display inventory items based on grouping
-                    groupBy === "status" ? (
-                      // Group rendering by status
-                      (() => {
-                        // Create groups
-                        const groups = filteredInventory.reduce((acc, item) => {
-                          const groupKey = getStatusText(item.inventory_qty);
-                          if (!acc[groupKey]) {
-                            acc[groupKey] = [];
-                          }
-                          acc[groupKey].push(item);
-                          return acc;
-                        }, {});
-                        
-                        // Sort groups by priority
-                        const statusOrder = ["High Stock", "In Stock", "Low Stock", "Backorder", "Out of Stock"];
-                        
-                        // Render groups
-                        return statusOrder.map(status => {
-                          const items = groups[status] || [];
-                          if (items.length === 0) return null;
-                          
-                          return (
-                            <React.Fragment key={status}>
-                              <tr className="bg-gray-900">
-                                <td colSpan={9} className="px-4 py-2 font-medium text-white">
-                                  {status} ({items.length})
-                                </td>
-                              </tr>
-                              {items.map(item => (
-                                <tr 
-                                  key={item.inventory_id} 
-                                  className="hover:bg-gray-700/60 transition-colors"
-                                >
-                                  <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 w-14">
-                                    {item.inventory_id}
-                                  </td>
-                                  <td className="px-1 py-1 text-center whitespace-nowrap w-18">
-                                    {item.inventory_image ? (
-                                      <div className="flex items-center justify-center">
-                                        <img 
-                                          src={`/storage/${item.inventory_image}${imageTimestamps[item.inventory_id] ? `?t=${imageTimestamps[item.inventory_id]}` : ''}`}
-                                          alt={item.inventory_name}
-                                          className="w-10 h-10 object-cover rounded-md border border-gray-600"
-                                          onError={(e) => {
-                                            (e.target as HTMLImageElement).onerror = null;
-                                            (e.target as HTMLImageElement).src = '/placeholder.png';
-                                          }}
-                                        />
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center justify-center">
-                                        <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-1 py-1 pl-5 text-left whitespace-nowrap text-sm font-medium w-80 text-gray-300">
-                                    {item.inventory_name}
-                                  </td>
-                                  <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-20">
-                                    ₱ {parseFloat(item.inventory_price.toString()).toFixed(2)}
-                                  </td>
-                                  <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
-                                    {item.inventory_qty}
-                                  </td>
-                                  <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
-                                    ₱ {(parseFloat(item.inventory_price.toString()) * item.inventory_qty).toFixed(2)}
-                                  </td>
-                                  <td className="px-1 py-1 text-center whitespace-nowrap w-28">
-                                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                      ${
-                                        item.inventory_qty >= 30
-                                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                                          : item.inventory_qty >= 10
-                                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                          : item.inventory_qty >= 5
-                                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                          : item.inventory_qty === 0
-                                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                          : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                                      }`}
-                                    >
-                                      {getStatusText(item.inventory_qty)}
-                                    </span>
-                                  </td>
-                                  <td className="px-1 py-1 text-center whitespace-nowrap w-30">
-                                    <ActionButtons 
-                                      onEdit={() => openEditModal(item)}
-                                      onDelete={() => handleDelete(item.inventory_id)}
-                                    />
-                                  </td>
-                                </tr>
-                              ))}
-                            </React.Fragment>
-                          );
-                        });
-                      })()
-                    ) : (
-                      // Regular rows without grouping
-                      filteredInventory.map(item => (
-                        <tr 
-                          key={item.inventory_id} 
-                          className="hover:bg-gray-700/60 transition-colors"
-                        >
-                          <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 w-14">
-                            {item.inventory_id}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap w-18">
-                            {item.inventory_image ? (
-                              <div className="flex items-center justify-center">
-                                <img 
-                                  src={`/storage/${item.inventory_image}${imageTimestamps[item.inventory_id] ? `?t=${imageTimestamps[item.inventory_id]}` : ''}`}
-                                  alt={item.inventory_name}
-                                  className="w-10 h-10 object-cover rounded-md border border-gray-600"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).onerror = null;
-                                    (e.target as HTMLImageElement).src = '/placeholder.png';
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center">
-                                <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-1 py-1 pl-5 text-left whitespace-nowrap text-sm font-medium w-80 text-gray-300">
-                            {item.inventory_name}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-20">
-                            ₱ {parseFloat(item.inventory_price.toString()).toFixed(2)}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
-                            {item.inventory_qty}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
-                            ₱ {(parseFloat(item.inventory_price.toString()) * item.inventory_qty).toFixed(2)}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap w-28">
-                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${
-                                item.inventory_qty >= 30
-                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                                  : item.inventory_qty >= 10
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  : item.inventory_qty >= 5
-                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                  : item.inventory_qty === 0
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                  : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                              }`}
-                            >
-                              {getStatusText(item.inventory_qty)}
-                            </span>
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap w-30">
-                            <ActionButtons 
-                              onEdit={() => openEditModal(item)}
-                              onDelete={() => handleDelete(item.inventory_id)}
-                            />
-                          </td>
-                        </tr>
-                      ))
-                    )
+                    filteredInventory.map(item => (
+                      <tr 
+                        key={item.inventory_id} 
+                        className="hover:bg-gray-700/60 transition-colors"
+                      >
+                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 w-14">
+                          {item.inventory_id}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap w-18">
+                          {item.inventory_image ? (
+                            <div className="flex items-center justify-center">
+                              <img 
+                                src={`/storage/inventory/${item.inventory_image}${imageTimestamps[item.inventory_id] ? `?t=${imageTimestamps[item.inventory_id]}` : ''}`}
+                                alt={item.inventory_name}
+                                className="w-10 h-10 object-cover rounded-md border border-gray-600"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).onerror = null;
+                                  (e.target as HTMLImageElement).src = '/placeholder.png';
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-1 py-1 pl-5 text-left whitespace-nowrap text-sm font-medium w-80 text-gray-300">
+                          {item.inventory_name}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-20">
+                          ₱ {parseFloat(item.inventory_price.toString()).toFixed(2)}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
+                          {item.inventory_qty}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
+                          ₱ {(parseFloat(item.inventory_price.toString()) * item.inventory_qty).toFixed(2)}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap w-28">
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${
+                              item.inventory_qty >= 30
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                : item.inventory_qty >= 10
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                : item.inventory_qty >= 5
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                : item.inventory_qty === 0
+                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                            }`}
+                          >
+                            {getStatusText(item.inventory_qty)}
+                          </span>
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap w-30">
+                          <ActionButtons 
+                            onEdit={() => openEditModal(item)}
+                            onDelete={() => handleDelete(item.inventory_id)}
+                          />
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -1139,16 +721,13 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
         </div>
       </div>
       
-      {/* Modal Implementation */}
       {isModalOpen && (
         <div className="fixed inset-0 flex items-start justify-center z-50 p-4">
-          {/* Semi-transparent overlay */}
           <div 
             className="absolute inset-0 bg-black/40" 
             onClick={() => setIsModalOpen(false)}
           ></div>
           
-          {/* Modal Content */}
           <div 
             className="relative bg-gray-800 px-4 py-3 rounded-xl shadow-2xl max-w-md w-full mt-10 max-h-[90vh] overflow-y-auto z-50 border border-gray-600"
             onClick={(e) => e.stopPropagation()}
@@ -1185,7 +764,6 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                   type="number"
                   value={data.quantity}
                   onChange={(e) => {
-                    // Parse input value to remove leading zeros but maintain as string in form state
                     const value = e.target.value;
                     const parsedValue = value === '' ? '' : parseInt(value, 10).toString();
                     setData("quantity", parsedValue);
@@ -1232,7 +810,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                   <div className="mt-2">
                     <p className="text-sm text-gray-400 mb-1">Current image:</p>
                     <img 
-                      src={`/storage/${selectedItem.inventory_image}`} 
+                      src={`/storage/inventory/${selectedItem.inventory_image}`} 
                       alt="Current" 
                       className="h-32 object-contain rounded-md" 
                     />

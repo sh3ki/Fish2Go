@@ -10,9 +10,11 @@ import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css';
-import { Filter, CircleX, Loader2, Plus, ArrowUp, ArrowDown, ArrowDownUp, ArrowDownZA, ArrowUpAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
+import { Filter, CircleX, Loader2, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import SearchBar from "@/components/ui/search-bar";
 import ActionButtons from "@/components/ui/action-buttons";
+import FilterButton from "@/components/ui/filter-button";
+import SortButton from "@/components/ui/sort-button";
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -69,7 +71,6 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
   const [productList, setProductList] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [activeCategory, setActiveCategory] = useState<number | "all" | "available">("all");
   const [categoryList, setCategoryList] = useState<Category[]>(categories || []);
   const [imageTimestamps, setImageTimestamps] = useState<Record<number, number>>({});
@@ -81,18 +82,12 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     category_color: "#3b82f6" // Default blue color
   });
   
-  // New state for sorting and filtering
+  // New state for sorting
   const [sortField, setSortField] = useState<string>("product_id");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [showSortModal, setShowSortModal] = useState(false);
-  const [groupBy, setGroupBy] = useState<string | null>(null);
   
   // Refs
   const tableRef = useRef<HTMLDivElement>(null);
-  const categoryButtonRef = useRef<HTMLButtonElement>(null);
-  const categoryModalRef = useRef<HTMLDivElement>(null);
-  const sortButtonRef = useRef<HTMLButtonElement>(null);
-  const sortModalRef = useRef<HTMLDivElement>(null);
 
   // Display a flash message if one exists
   useEffect(() => {
@@ -119,86 +114,39 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
       const sorted = sortProductsCopy(filteredProducts);
       setFilteredProducts(sorted);
     }
-  }, [sortField, sortDirection, groupBy]);
+  }, [sortField, sortDirection]);
 
   // Create a copy of the sort function that doesn't mutate state
   const sortProductsCopy = (productsToSort: Product[]) => {
     let sorted = [...productsToSort];
     
-    // First apply grouping if selected
-    if (groupBy === "category") {
+    // Regular sorting
+    if (sortField === "product_id") {
+      sorted.sort((a, b) => 
+        sortDirection === "asc" ? a.product_id - b.product_id : b.product_id - a.product_id
+      );
+    } else if (sortField === "product_name") {
+      sorted.sort((a, b) => 
+        sortDirection === "asc" 
+          ? a.product_name.localeCompare(b.product_name) 
+          : b.product_name.localeCompare(a.product_name)
+      );
+    } else if (sortField === "price") {
       sorted.sort((a, b) => {
-        const catA = a.category_name || "";
-        const catB = b.category_name || "";
-        return catA.localeCompare(catB);
+        const priceA = parseFloat(a.product_price.toString());
+        const priceB = parseFloat(b.product_price.toString());
+        return sortDirection === "asc" ? priceA - priceB : priceB - priceA;
       });
-    } else if (groupBy === "status") {
+    } else if (sortField === "qty") {
+      sorted.sort((a, b) => 
+        sortDirection === "asc" ? a.product_qty - b.product_qty : b.product_qty - a.product_qty
+      );
+    } else if (sortField === "total") {
       sorted.sort((a, b) => {
-        const statusA = getStatusText(a.product_qty);
-        const statusB = getStatusText(b.product_qty);
-        return statusA.localeCompare(statusB);
+        const totalA = parseFloat(a.product_price.toString()) * a.product_qty;
+        const totalB = parseFloat(b.product_price.toString()) * b.product_qty;
+        return sortDirection === "asc" ? totalA - totalB : totalB - totalA;
       });
-    }
-    
-    // Then apply sorting within groups
-    if (groupBy) {
-      // If we're grouping, we need to sort within groups
-      if (sortField === "product_id") {
-        sorted = stableSort(sorted, (a, b) => 
-          sortDirection === "asc" ? a.product_id - b.product_id : b.product_id - a.product_id
-        );
-      } else if (sortField === "product_name") {
-        sorted = stableSort(sorted, (a, b) => 
-          sortDirection === "asc" 
-            ? a.product_name.localeCompare(b.product_name) 
-            : b.product_name.localeCompare(a.product_name)
-        );
-      } else if (sortField === "price") {
-        sorted = stableSort(sorted, (a, b) => {
-          const priceA = parseFloat(a.product_price.toString());
-          const priceB = parseFloat(b.product_price.toString());
-          return sortDirection === "asc" ? priceA - priceB : priceB - priceA;
-        });
-      } else if (sortField === "qty") {
-        sorted = stableSort(sorted, (a, b) => 
-          sortDirection === "asc" ? a.product_qty - b.product_qty : b.product_qty - a.product_qty
-        );
-      } else if (sortField === "total") {
-        sorted = stableSort(sorted, (a, b) => {
-          const totalA = parseFloat(a.product_price.toString()) * a.product_qty;
-          const totalB = parseFloat(b.product_price.toString()) * b.product_qty;
-          return sortDirection === "asc" ? totalA - totalB : totalB - totalA;
-        });
-      }
-    } else {
-      // Regular sorting without grouping
-      if (sortField === "product_id") {
-        sorted.sort((a, b) => 
-          sortDirection === "asc" ? a.product_id - b.product_id : b.product_id - a.product_id
-        );
-      } else if (sortField === "product_name") {
-        sorted.sort((a, b) => 
-          sortDirection === "asc" 
-            ? a.product_name.localeCompare(b.product_name) 
-            : b.product_name.localeCompare(a.product_name)
-        );
-      } else if (sortField === "price") {
-        sorted.sort((a, b) => {
-          const priceA = parseFloat(a.product_price.toString());
-          const priceB = parseFloat(b.product_price.toString());
-          return sortDirection === "asc" ? priceA - priceB : priceB - priceA;
-        });
-      } else if (sortField === "qty") {
-        sorted.sort((a, b) => 
-          sortDirection === "asc" ? a.product_qty - b.product_qty : b.product_qty - a.product_qty
-        );
-      } else if (sortField === "total") {
-        sorted.sort((a, b) => {
-          const totalA = parseFloat(a.product_price.toString()) * a.product_qty;
-          const totalB = parseFloat(b.product_price.toString()) * b.product_qty;
-          return sortDirection === "asc" ? totalA - totalB : totalB - totalA;
-        });
-      }
     }
     
     return sorted;
@@ -210,16 +158,6 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     setFilteredProducts(sorted);
   };
 
-  // Helper function for stable sorting within groups
-  const stableSort = (array: Product[], compareFn: (a: Product, b: Product) => number) => {
-    return array.map((item, index) => ({ item, index }))
-      .sort((a, b) => {
-        const order = compareFn(a.item, b.item);
-        return order !== 0 ? order : a.index - b.index;
-      })
-      .map(({ item }) => item);
-  };
-
   // Get user-friendly status text based on quantity
   const getStatusText = (qty: number): string => {
     if (qty >= 30) return "High Stock";
@@ -229,11 +167,9 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     return "Backorder";
   };
 
-  const handleSortOption = (field: string, direction: "asc" | "desc", group: string | null = groupBy) => {
+  const handleSortOption = (field: string, direction: "asc" | "desc") => {
     setSortField(field);
     setSortDirection(direction);
-    setGroupBy(group);
-    setShowSortModal(false);
     
     // Apply sorting immediately
     const sorted = sortProductsCopy(filteredProducts);
@@ -409,7 +345,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
               onClick={() => {
                 onClose();
               }}
-              className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded-md shadow hover:bg-gray-400 dark:hover:bg-gray-500"
+              className="px-4 py-2 bg-gray-600 text-white rounded-md shadow hover:bg-gray-700"
             >
               Cancel
             </button>
@@ -440,16 +376,6 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     setIsModalOpen(true);
   };
 
-  const toggleCategoryModal = () => {
-    setShowCategoryModal(prev => !prev);
-    if (showSortModal) setShowSortModal(false);
-  };
-
-  const toggleSortModal = () => {
-    setShowSortModal(prev => !prev);
-    if (showCategoryModal) setShowCategoryModal(false);
-  };
-
   const filterByCategory = (categoryId: number | "all" | "available") => {
     setActiveCategory(categoryId);
     
@@ -474,8 +400,6 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     // Apply sorting to filtered results
     const sorted = sortProductsCopy(filtered);
     setFilteredProducts(sorted);
-    
-    setShowCategoryModal(false);
   };
 
   const handleSearchResults = (results: Product[]) => {
@@ -609,32 +533,6 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     }
   };
 
-  // Close modals when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      // Handle category modal
-      if (categoryModalRef.current && 
-          !categoryModalRef.current.contains(event.target) &&
-          categoryButtonRef.current && 
-          !categoryButtonRef.current.contains(event.target)) {
-        setShowCategoryModal(false);
-      }
-      
-      // Handle sort modal
-      if (sortModalRef.current && 
-          !sortModalRef.current.contains(event.target) &&
-          sortButtonRef.current && 
-          !sortButtonRef.current.contains(event.target)) {
-        setShowSortModal(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -693,214 +591,25 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                 className="input w-full bg-gray-700 p-1.5 pl-3 text-sm text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white-400"
               />
               
-              <div className="relative">
-                <Button
-                  ref={categoryButtonRef}
-                  className="bg-gray-500 rounded-lg flex items-center justify-center h-8"
-                  style={{ aspectRatio: '1/1', padding: '0' }}
-                  onClick={toggleCategoryModal}
-                >
-                  <Filter size={18} />
-                </Button>
-                
-                {showCategoryModal && (
-                  <div 
-                    ref={categoryModalRef}
-                    className="absolute right-0 p-0.5 w-40 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
-                  >
-                    <div className="py-0.5" role="menu" aria-orientation="vertical">
-                      <button
-                        onClick={() => filterByCategory("all")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeCategory === "all" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        All products
-                      </button>
-                      <button
-                        onClick={() => filterByCategory("available")}
-                        className={`block w-full text-left px-4 py-2 text-sm ${
-                          activeCategory === "available" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        Available
-                      </button>
-                      {categoryList && categoryList.length > 0 ? (
-                        categoryList.map((category) => (
-                          <button
-                            key={category.category_id}
-                            onClick={() => filterByCategory(category.category_id)}
-                            className={`block w-full text-left px-4 py-2 text-sm ${
-                              activeCategory === category.category_id 
-                              ? "bg-gray-600 text-white" 
-                              : "text-white hover:bg-gray-600"
-                            }`}
-                            role="menuitem"
-                          >
-                            {category.category_name}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-2 text-sm text-gray-400">Loading categories...</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <FilterButton
+                options={categoryList.map(cat => ({ id: cat.category_id, name: cat.category_name }))}
+                activeFilter={activeCategory}
+                onSelectFilter={(categoryId) => filterByCategory(categoryId as number | "all" | "available")}
+                includeAvailable={true}
+              />
               
-              {/* New Sort Button */}
-              <div className="relative">
-                <Button
-                  ref={sortButtonRef}
-                  className="bg-gray-500 rounded-lg flex items-center justify-center h-8"
-                  style={{ aspectRatio: '1/1', padding: '0' }}
-                  onClick={toggleSortModal}
-                >
-                  <ArrowDownUp size={18} />
-                </Button>
-                
-                {showSortModal && (
-                  <div 
-                    ref={sortModalRef}
-                    className="absolute right-0 p-0.5 w-52 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
-                  >
-                    <div className="py-0.5" role="menu" aria-orientation="vertical">
-                      {/* Sort options */}
-                      
-                      {/* ID sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm">By ID</div>
-                      <button
-                        onClick={() => handleSortOption("product_id", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "product_id" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Ascending
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("product_id", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "product_id" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Descending
-                      </button>
-                      
-                      {/* Name sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Name</div>
-                      <button
-                        onClick={() => handleSortOption("product_name", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "product_name" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUpAZ size={14} className="mr-2" /> A to Z
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("product_name", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "product_name" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDownZA size={14} className="mr-2" /> Z to A
-                      </button>
-                      
-                      {/* Price sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Price</div>
-                      <button
-                        onClick={() => handleSortOption("price", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "price" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Lowest first
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("price", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "price" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Highest first
-                      </button>
-                      
-                      {/* Quantity sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Quantity</div>
-                      <button
-                        onClick={() => handleSortOption("qty", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "qty" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Lowest first
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("qty", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "qty" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Highest first
-                      </button>
-                      
-                      {/* Total sorting */}
-                      <div className="px-4 py-1 text-white font-medium text-sm mt-2">By Total Value</div>
-                      <button
-                        onClick={() => handleSortOption("total", "asc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "total" && sortDirection === "asc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowUp01 size={14} className="mr-2" /> Lowest first
-                      </button>
-                      <button
-                        onClick={() => handleSortOption("total", "desc")}
-                        className={`flex items-center w-full text-left px-4 py-1 text-sm ${
-                          sortField === "total" && sortDirection === "desc" 
-                          ? "bg-gray-600 text-white" 
-                          : "text-white hover:bg-gray-600"
-                        }`}
-                        role="menuitem"
-                      >
-                        <ArrowDown10 size={14} className="mr-2" /> Highest first
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <SortButton
+                options={[
+                  { field: "product_id", label: "ID", type: "numeric" },
+                  { field: "product_name", label: "Name", type: "text" },
+                  { field: "price", label: "Price", type: "numeric" },
+                  { field: "qty", label: "Quantity", type: "numeric" },
+                  { field: "total", label: "Total Value", type: "numeric" }
+                ]}
+                currentField={sortField}
+                currentDirection={sortDirection}
+                onSort={handleSortOption}
+              />
             </div>
             
             {/* Add Product Button - Right Aligned */}
@@ -934,7 +643,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                   <tr>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-14 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "product_id" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("product_id", sortField === "product_id" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("product_id", sortField === "product_id" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         ID
@@ -948,7 +657,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-80 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "product_name" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("product_name", sortField === "product_name" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("product_name", sortField === "product_name" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Product Name
@@ -959,7 +668,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-20 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "price" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("price", sortField === "price" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("price", sortField === "price" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Price
@@ -970,7 +679,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-14 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "qty" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("qty", sortField === "qty" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("qty", sortField === "qty" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Qty
@@ -981,7 +690,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                     </th>
                     <th 
                       className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-24 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "total" ? "bg-gray-600" : ""}`}
-                      onClick={() => handleSortOption("total", sortField === "total" && sortDirection === "asc" ? "desc" : "asc", groupBy)}
+                      onClick={() => handleSortOption("total", sortField === "total" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
                         Total
@@ -1034,159 +743,68 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                       </td>
                     </tr>
                   ) : (
-                    // Use filteredProducts instead of productList
-                    groupBy ? (
-                      // Group rendering logic
-                      (() => {
-                        // Create groups
-                        const groups = filteredProducts.reduce((acc, product) => {
-                          const groupKey = groupBy === "category" 
-                            ? (product.category_name || "Uncategorized")
-                            : getStatusText(product.product_qty);
-                            
-                          if (!acc[groupKey]) {
-                            acc[groupKey] = [];
-                          }
-                          acc[groupKey].push(product);
-                          return acc;
-                        }, {});
-                        
-                        // Render groups
-                        return Object.entries(groups).map(([groupName, products]) => (
-                          <React.Fragment key={groupName}>
-                            <tr className="bg-gray-900">
-                              <td colSpan={9} className="px-4 py-2 font-medium text-white">
-                                {groupName} ({(products as Product[]).length})
-                              </td>
-                            </tr>
-                            {(products as Product[]).map(product => (
-                              <tr 
-                                key={product.product_id} 
-                                className="hover:bg-gray-700/60 transition-colors"
-                              >
-                                <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 w-14">
-                                  {product.product_id}
-                                </td>
-                                <td className="px-1 py-1 text-center whitespace-nowrap w-18">
-                                  {product.product_image ? (
-                                    <div className="flex items-center justify-center">
-                                      <img 
-                                        src={`/storage/${product.product_image}${imageTimestamps[product.product_id] ? `?t=${imageTimestamps[product.product_id]}` : ''}`} 
-                                        alt={product.product_name}
-                                        className="w-10 h-10 object-cover rounded-md border border-gray-600"
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).onerror = null;
-                                          (e.target as HTMLImageElement).src = '/placeholder.png';
-                                        }}
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center justify-center">
-                                      <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-1 py-1 pl-5 text-left whitespace-nowrap text-sm font-medium w-80 text-gray-300">
-                                  {product.product_name}
-                                </td>
-                                <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-20">
-                                  ₱ {parseFloat(product.product_price.toString()).toFixed(2)}
-                                </td>
-                                <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
-                                  {product.product_qty}
-                                </td>
-                                <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
-                                  ₱ {(parseFloat(product.product_price.toString()) * product.product_qty).toFixed(2)}
-                                </td>
-                                <td className="px-1 py-1 text-center whitespace-nowrap w-28">
-                                  <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    ${product.product_qty >= 30 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
-                                      product.product_qty >= 10 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                                      product.product_qty >= 5 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
-                                      product.product_qty === 0 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
-                                      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}
-                                  >
-                                    {getStatusText(product.product_qty)}
-                                  </span>
-                                </td>
-                                <td className="px-1 py-1 text-center text-sm text-gray-300 w-26">
-                                  {product.category_name}
-                                </td>
-                                <td className="px-1 py-1 text-center whitespace-nowrap space-x-2 w-30">
-                                  <ActionButtons 
-                                    onEdit={() => openEditModal(product)}
-                                    onDelete={() => handleDelete(product.product_id)}
-                                  />
-                                </td>
-                              </tr>
-                            ))}
-                          </React.Fragment>
-                        ));
-                      })()
-                    ) : (
-                      // Regular rows without grouping
-                      filteredProducts.map((product) => (
-                        <tr 
-                          key={product.product_id} 
-                          className="hover:bg-gray-700/60 transition-colors"
-                        >
-                          <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 w-14">
-                            {product.product_id}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap w-18">
-                            {product.product_image ? (
-                              <div className="flex items-center justify-center">
-                                <img 
-                                  src={`/storage/${product.product_image}${imageTimestamps[product.product_id] ? `?t=${imageTimestamps[product.product_id]}` : ''}`} 
-                                  alt={product.product_name}
-                                  className="w-10 h-10 object-cover rounded-md border border-gray-600"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).onerror = null;
-                                    (e.target as HTMLImageElement).src = '/placeholder.png';
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center">
-                                <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-1 py-1 pl-5 text-left whitespace-nowrap text-sm font-medium w-80 text-gray-300">
-                            {product.product_name}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-20">
-                            ₱ {parseFloat(product.product_price.toString()).toFixed(2)}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
-                            {product.product_qty}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
-                            ₱ {(parseFloat(product.product_price.toString()) * product.product_qty).toFixed(2)}
-                          </td>
-                          <td className="px-1 py-1 text-center whitespace-nowrap w-28">
-                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${product.product_qty >= 30 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
-                                product.product_qty >= 10 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                                product.product_qty >= 5 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
-                                product.product_qty === 0 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
-                                "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}
-                            >
-                              {getStatusText(product.product_qty)}
-                            </span>
-                          </td>
-                          <td className="px-1 py-1 text-center text-sm text-gray-300 w-26">
-                            {product.category_name}
-                          </td>
-                          <td className="px-1 py-1 text-center items-center whitespace-nowrap space-x-2 w-30">
-                            <ActionButtons 
-                              onEdit={() => openEditModal(product)}
-                              onDelete={() => handleDelete(product.product_id)}
-                            />
-                          </td>
-                        </tr>
-                      ))
-                    )
+                    // Regular rows without grouping
+                    filteredProducts.map((product) => (
+                      <tr 
+                        key={product.product_id} 
+                        className="hover:bg-gray-700/60 transition-colors"
+                      >
+                        <td className="px-1 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 w-14">
+                          {product.product_id}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap w-18">
+                          {product.product_image ? (
+                            <div className="flex items-center justify-center">
+                              <img 
+                                src={`/storage/${product.product_image}${imageTimestamps[product.product_id] ? `?t=${imageTimestamps[product.product_id]}` : ''}`} 
+                                alt={product.product_name}
+                                className="w-10 h-10 object-cover rounded-md border border-gray-600"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).onerror = null;
+                                  (e.target as HTMLImageElement).src = '/placeholder.png';
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-1 py-1 pl-5 text-left whitespace-nowrap text-sm font-medium w-80 text-gray-300">
+                          {product.product_name}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-20">
+                          ₱ {parseFloat(product.product_price.toString()).toFixed(2)}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
+                          {product.product_qty}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
+                          ₱ {(parseFloat(product.product_price.toString()) * product.product_qty).toFixed(2)}
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap w-28">
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${product.product_qty >= 30 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
+                              product.product_qty >= 10 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                              product.product_qty >= 5 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                              product.product_qty === 0 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                              "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}
+                          >
+                            {getStatusText(product.product_qty)}
+                          </span>
+                        </td>
+                        <td className="px-1 py-1 text-center text-sm text-gray-300 w-26">
+                          {product.category_name}
+                        </td>
+                        <td className="px-1 py-1 text-center items-center whitespace-nowrap space-x-2 w-30">
+                          <ActionButtons 
+                            onEdit={() => openEditModal(product)}
+                            onDelete={() => handleDelete(product.product_id)}
+                          />
+                        </td>
+                      </tr>
+                    ))
                   )}
                   
                   </tbody>              

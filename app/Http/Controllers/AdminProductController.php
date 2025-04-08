@@ -17,9 +17,9 @@ class AdminProductController extends Controller
 {
     public function index()
     {
-        // Changed to get() from paginate() to retrieve all products at once
-        $products = Product::with('category')->latest()->get();
-        $categories = Category::all();
+        // Changed from paginate(10) to paginate(30) to show more products initially 
+        $products = Product::with('category')->latest()->paginate(30);
+        $newestProducts = Product::with('category')->latest()->take(10)->get();
     
         return Inertia::render('admin_product', [
             'products' => [
@@ -35,9 +35,11 @@ class AdminProductController extends Controller
                         'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
                     ];
                 }),
-                'total' => $products->count(),
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'total' => $products->total(),
             ],
-            'categories' => $categories,
+            'newestProducts' => $newestProducts,
         ]);
     }
 
@@ -61,7 +63,8 @@ class AdminProductController extends Controller
 
     public function fetchProducts(Request $request)
     {
-        // Get search and category filter parameters
+        // Get page, search, and category filter parameters
+        $page = $request->query('page', 1);
         $search = $request->query('search');
         $category = $request->query('category');
         
@@ -78,11 +81,11 @@ class AdminProductController extends Controller
             $query->where('category_id', $category);
         }
         
-        // Execute query without pagination to get all results
-        $products = $query->get();
+        // Execute query with pagination (20 items per page for better lazy loading)
+        $products = $query->paginate(20);
     
         // Transform product data
-        $productsData = $products->map(function ($product) {
+        $productsData = $products->getCollection()->map(function ($product) {
             return [
                 'product_id' => $product->product_id,
                 'product_name' => $product->product_name,
@@ -98,7 +101,9 @@ class AdminProductController extends Controller
         return response()->json([
             'products' => [
                 'data' => $productsData,
-                'total' => $products->count(),
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'total' => $products->total(),
             ]
         ]);
     }

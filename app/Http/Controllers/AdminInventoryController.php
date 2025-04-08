@@ -8,6 +8,7 @@ use App\Models\Inventory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class AdminInventoryController extends Controller
 {
@@ -15,11 +16,29 @@ class AdminInventoryController extends Controller
     {
         try {
             // Get all inventory items instead of paginating
-            $inventory = Inventory::latest()->get();
+            $inventory = Inventory::latest()->get()->map(function ($item) {
+                return [
+                    'inventory_id' => $item->inventory_id,
+                    'inventory_name' => $item->inventory_name,
+                    'inventory_qty' => $item->inventory_qty,
+                    'inventory_price' => $item->inventory_price,
+                    'inventory_image' => $item->inventory_image, // Don't add prefix here
+                    'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
         
             // Cache the 10 newest items for 7 days
             $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
-                return Inventory::latest()->take(10)->get();
+                return Inventory::latest()->take(10)->get()->map(function ($item) {
+                    return [
+                        'inventory_id' => $item->inventory_id,
+                        'inventory_name' => $item->inventory_name,
+                        'inventory_qty' => $item->inventory_qty,
+                        'inventory_price' => $item->inventory_price,
+                        'inventory_image' => $item->inventory_image, // Don't add prefix here
+                        'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                });
             });
         
             return Inertia::render('admin_inventory', [
@@ -44,7 +63,6 @@ class AdminInventoryController extends Controller
         }
     }
 
-    // Updated fetch method to match ProductController's implementation
     public function fetch(Request $request)
     {
         try {
@@ -69,14 +87,23 @@ class AdminInventoryController extends Controller
                     'inventory_name' => $item->inventory_name,
                     'inventory_qty' => $item->inventory_qty,
                     'inventory_price' => $item->inventory_price,
-                    'inventory_image' => $item->inventory_image ? $item->inventory_image : null,
+                    'inventory_image' => $item->inventory_image, // Don't add prefix here
                     'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
                 ];
             });
             
             // Get newest items
             $newestItems = Cache::remember('newest_items', now()->addDays(7), function () {
-                return Inventory::latest()->take(10)->get();
+                return Inventory::latest()->take(10)->get()->map(function ($item) {
+                    return [
+                        'inventory_id' => $item->inventory_id,
+                        'inventory_name' => $item->inventory_name,
+                        'inventory_qty' => $item->inventory_qty,
+                        'inventory_price' => $item->inventory_price,
+                        'inventory_image' => $item->inventory_image, // Don't add prefix here
+                        'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                });
             });
 
             return response()->json([
@@ -101,14 +128,32 @@ class AdminInventoryController extends Controller
     public function store(Request $request) {
         $request->validate([
             'name' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|numeric|min:0',
             'item_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'price' => 'required|numeric|min:0',
         ]);
 
-        $imagePath = null;
+        $filename = null;
+        
         if ($request->hasFile('item_image')) {
-            $imagePath = $request->file('item_image')->store('inventory', 'public'); // Store in storage/app/public/inventory
+            $file = $request->file('item_image');
+            $extension = $file->getClientOriginalExtension();
+            
+            // Use inventory name directly as filename (preserving case)
+            $filename = $request->input('name') . '.' . $extension;
+            
+            // Store in inventory folder with exact name
+            Storage::disk('public')->putFileAs(
+                'inventory', 
+                $file, 
+                $filename
+            );
+            
+            // Save just the filename without the path
+            $imagePath = $filename;
+        } else {
+            // Default image path is just the name with .png extension
+            $imagePath = $request->input('name') . '.png';
         }
 
         $inventory = new Inventory();
@@ -129,28 +174,61 @@ class AdminInventoryController extends Controller
         // Validate incoming request
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|numeric|min:0',
             'price' => 'required|numeric|min:0',
             'item_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $inventory = Inventory::findOrFail($id);
 
-        // Process image if provided; delete old image if exists
+        // Handle image upload if a new image is provided
         if ($request->hasFile('item_image')) {
+            $file = $request->file('item_image');
+            $extension = $file->getClientOriginalExtension();
+            
+            // If there's an existing image, delete it from storage
             if ($inventory->inventory_image) {
-                Storage::disk('public')->delete($inventory->inventory_image);
+                Storage::disk('public')->delete('inventory/' . $inventory->inventory_image);
             }
-            $validated['item_image'] = $request->file('item_image')->store('inventory', 'public');
-        } else {
-            $validated['item_image'] = $inventory->inventory_image;
+            
+            // Use inventory name directly as filename (preserving case)
+            $filename = $validated['name'] . '.' . $extension;
+            
+            // Store the new image
+            Storage::disk('public')->putFileAs(
+                'inventory', 
+                $file, 
+                $filename
+            );
+            
+            // Save just the filename without the path
+            $inventory->inventory_image = $filename;
+        } 
+        // If name changed but image remains the same, rename the image file
+        else if ($inventory->inventory_name !== $validated['name'] && $inventory->inventory_image) {
+            try {
+                $oldPath = 'inventory/' . $inventory->inventory_image;
+                $extension = pathinfo($inventory->inventory_image, PATHINFO_EXTENSION);
+                $newFilename = $validated['name'] . '.' . $extension;
+                $newPath = 'inventory/' . $newFilename;
+                
+                // Check if the old file exists and rename it
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->move($oldPath, $newPath);
+                }
+                
+                // Update the database with just the filename
+                $inventory->inventory_image = $newFilename;
+            } catch (\Exception $e) {
+                // Log the error but don't halt the update
+                Log::error('Error renaming inventory image: ' . $e->getMessage());
+            }
         }
 
         // Update the inventory fields
         $inventory->inventory_name = $validated['name'];
         $inventory->inventory_qty = $validated['quantity'];
         $inventory->inventory_price = $validated['price'];
-        $inventory->inventory_image = $validated['item_image'];
         $inventory->save();
 
         // Clear cache for newest items
@@ -167,7 +245,7 @@ class AdminInventoryController extends Controller
         $inventory = Inventory::findOrFail($id);
 
         if ($inventory->inventory_image) {
-            Storage::disk('public')->delete($inventory->inventory_image);
+            Storage::disk('public')->delete('inventory/' . $inventory->inventory_image);
         }
 
         $inventory->delete();
@@ -177,4 +255,5 @@ class AdminInventoryController extends Controller
 
         return response()->json(['message' => 'Inventory item deleted successfully!']);
     }
+
 }
