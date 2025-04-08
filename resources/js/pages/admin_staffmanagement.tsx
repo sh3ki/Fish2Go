@@ -15,6 +15,12 @@ export default function AdminStaffManagement() {
             <span>Staff Management</span>
           </h3>
           </div>
+          <a
+              href="my.bluetoothprint.scheme://http://192.168.1.10:8000/print-receipt.php"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors inline-block text-center"
+            >
+              Print Receipt
+            </a>
         </div>
     </AppLayout>
   );

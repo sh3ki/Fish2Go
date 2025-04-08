@@ -585,6 +585,30 @@ export default function POS() {
             // Send order to server
             const response = await axios.post(route('staff.orders.store'), orderItems);
             
+            // Prepare receipt data for printing
+            const receiptData = {
+                receiptNo: response.data.order_id || Math.floor(10000 + Math.random() * 90000).toString(),
+                date: new Date().toISOString().split('T')[0],
+                time: new Date().toTimeString().slice(0, 8),
+                cashier: document.querySelector('meta[name="user-name"]')?.getAttribute('content') || "Staff",
+                orderNo: `ORD-${response.data.order_id || Math.floor(1000 + Math.random() * 9000)}`,
+                items: selectedItems.map(item => ({
+                    name: item.product_name,
+                    qty: item.qty,
+                    price: parseFloat(item.product_price)
+                })),
+                subtotal: subtotal,
+                tax: tax,
+                discount: discountAmount,
+                total: total,
+                paymentMethod: paymentMethod,
+                cash: paymentMethod === 'CASH' ? parseFloat(cash) : total,
+                change: paymentMethod === 'CASH' ? change : 0
+            };
+            
+            // Encode the receipt data for URL transmissionA
+            const encodedData = encodeURIComponent(JSON.stringify(receiptData));
+            
             // Order completed successfully
             setErrorMessage("Order completed successfully!");
 
@@ -593,6 +617,19 @@ export default function POS() {
                 setShowCheckoutModal(false);
                 setSelectedItems([]);
                 setCash("");
+                
+                // Open receipt printing with actual order data
+                const printWindow = window.open(
+                    `my.bluetoothprint.scheme://http://192.168.1.10:8000/print-receipt.php?orderData=${encodedData}`,
+                    "_blank"
+                );
+                
+                // If the window opens, we're good. If not (it returns null), 
+                // the browser might have blocked the popup
+                if (!printWindow) {
+                    alert("Please enable popups for receipt printing or use the Print Receipt button instead.");
+                }
+                
                 router.reload(); // Refresh product data
             }, 1500);
 
