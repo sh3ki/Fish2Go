@@ -10,6 +10,7 @@ interface Notification {
     product_qty: number;
     created_at: string;
     notification_count?: number; // added optional field
+    notification_time?: string; // added optional field
 }
 
 interface AppLayoutProps {
@@ -28,9 +29,18 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
         fetch('/notifications')
             .then((res) => res.json())
             .then((data: Notification[]) => {
-                setNotifications(data);
-                // Count only notifications that are 'unread' (count = 1 for each unread)
-                const unreadCount = data.filter(notification => notification.product_notification === 'unread').length;
+                const now = new Date();
+                const updatedData = data.map(notification => {
+                    const notificationTime = Math.floor((now.getTime() - new Date(notification.created_at).getTime()) / 60000);
+                    return {
+                        ...notification,
+                        notification_time: notificationTime < 60 
+                            ? `${notificationTime} Minutes Ago` 
+                            : `${Math.floor(notificationTime / 60)} Hours Ago`
+                    };
+                });
+                setNotifications(updatedData);
+                const unreadCount = updatedData.filter(notification => notification.product_notification === 'unread').length;
                 setUnreadCount(unreadCount);
                 setLoading(false);
             });
@@ -104,14 +114,7 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => {
                                             {notification.product_name} has only <strong>{notification.product_qty}</strong> left!
                                         </div>
                                         <div className="text-xs text-gray-500">
-                                            {new Date(notification.created_at).toLocaleString([], { 
-                                                year: 'numeric', 
-                                                month: '2-digit', 
-                                                day: '2-digit', 
-                                                hour: '2-digit', 
-                                                minute: '2-digit', 
-                                                hour12: true
-                                            })}
+                                            {notification.notification_time}
                                         </div>
                                     </div>
                                 ))
