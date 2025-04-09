@@ -7,7 +7,10 @@ import { Search, Loader2 } from "lucide-react";
 
 export default function AdminSales() {
   const [orders, setOrders] = useState([]);
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(() => {
+    const now = new Date();
+    return now.toLocaleDateString("en-CA"); // Format as YYYY-MM-DD in local timezone
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,9 +53,9 @@ export default function AdminSales() {
     <AppLayout breadcrumbs={[{ title: "Sales", href: "/admin/sales" }]}>
       <Head title="Sales" />
       <div className="flex flex-col gap-4 rounded-xl p-4">
-        {/* Search Container */}
-        <div className="p-4 pb-2 w-1/2 shadow">
-          <div className="flex items-center gap-1.5 mb-2 bg-transparent rounded-lg">
+        {/* Search and Date Filter Container */}
+        <div className="p-4 pb-2 w-full shadow flex justify-between items-center">
+          <div className="flex items-center gap-1.5 bg-transparent rounded-lg w-1/2">
             <input
               type="text"
               placeholder="Search Orders"
@@ -66,6 +69,19 @@ export default function AdminSales() {
             >
               <Search size={18} />
             </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="date-filter" className="text-sm text-gray-300">
+              Filter by Date:
+            </label>
+            <input
+              id="date-filter"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="input bg-gray-700 p-1.5 text-sm text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white-400"
+              defaultValue={new Date().toISOString().split("T")[0]} // Set default value to today's date
+            />
           </div>
         </div>
 

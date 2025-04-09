@@ -73,7 +73,7 @@ export default function InventoryPOS() {
     const fetchInventory = async () => {
         setIsLoading(true);
         try {
-            const response = await axios.get("/api/staff/inventory");
+            const response = await axios.get("/staff/inventory");
             
             // Process the inventory data to include beginning/used/ending quantities
             const processedInventory = response.data.map((item: InventoryItem) => ({
@@ -407,7 +407,7 @@ export default function InventoryPOS() {
             }));
             
             // Call API to save changes
-            const response = await axios.post('/api/staff/inventory/update', { 
+            const response = await axios.post('/staff/inventory/update', { 
                 inventory: inventoryUpdates 
             });
             

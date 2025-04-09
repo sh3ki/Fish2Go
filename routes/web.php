@@ -13,6 +13,7 @@ use App\Http\Controllers\AdminExpensesController;
 use App\Http\Controllers\AdminStaffManagementController;
 use App\Http\Controllers\AdminPromotionsController;
 use App\Http\Controllers\AdminInventoryUsedController;
+use App\Http\Controllers\AdminSummaryController;
 
 //Staff Controllers
 use App\Http\Controllers\StaffInventoryController;
@@ -91,6 +92,9 @@ Route::middleware(['admin'])->group(function () {
     //Expenses
     Route::get('/api/expenses', [AdminExpensesController::class, 'getExpenses'])->name('expenses.get');
     Route::delete('/api/expenses/{id}', [AdminExpensesController::class, 'destroy'])->name('expenses.destroy');
+
+    //Summary
+    Route::get('/admin/summary', [AdminSummaryController::class, 'index'])->name('admin.summary');
    
 });
 
@@ -116,6 +120,7 @@ Route::middleware(['staff'])->group(function () {
 
     //Transactions
     Route::get('/staff/transactions', [StaffTransactionController::class, 'index'])->name('staff.transactions');
+    Route::get('/staff/transactions/data', [StaffTransactionController::class, 'getTransactions'])->name('staff.transactions.data');
 
     //Delievery
     Route::get('/staff/delivery', [StaffDeliveryController::class, 'index'])->name('staff.delivery');
@@ -124,11 +129,11 @@ Route::middleware(['staff'])->group(function () {
     Route::get('/staff/messages', [StaffMessagesController::class, 'index'])->name('staff.messages');
 
     //Products
-    Route::get('/api/staff/products', [StaffProductController::class, 'getProducts'])->name('staff.products');
+    Route::get('/staff/products', [StaffProductController::class, 'getProducts'])->name('staff.products');
     
     //Inventory
-    Route::get('/api/staff/inventory', [StaffInventoryController::class, 'getInventory'])->name('staff.inventory');
-    Route::post('/api/staff/inventory/update', [StaffInventoryController::class, 'updateInventoryUsed'])->name('staff.inventory.update');
+    Route::get('/staff/inventory', [StaffInventoryController::class, 'getInventory'])->name('staff.inventory');
+    Route::post('/staff/inventory/update', [StaffInventoryController::class, 'updateInventoryUsed'])->name('staff.inventory.update');
 
      //Summary
      Route::get('/staff/summary', [StaffSummaryController::class, 'index'])->name('staff.summary');

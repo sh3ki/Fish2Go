@@ -6,6 +6,7 @@ import SearchBar from "@/components/ui/search-bar";
 import { confirmAlert } from 'react-confirm-alert';
 import { toast } from 'react-hot-toast';
 import { Trash2 } from "lucide-react";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface Expense {
   id: number;
@@ -24,6 +25,10 @@ export default function AdminExpenses() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const now = new Date();
+    return now.toLocaleDateString("en-CA"); // Format as YYYY-MM-DD in local timezone
+  });
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -53,6 +58,18 @@ export default function AdminExpenses() {
     );
   };
   
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date);
+    if (date) {
+      const filteredByDate = expenses.filter(expense =>
+        new Date(expense.date).toLocaleDateString("en-CA") === date
+      );
+      setFilteredExpenses(filteredByDate);
+    } else {
+      setFilteredExpenses(expenses); // Reset to all expenses if no date is selected
+    }
+  };
+
   const handleDelete = async (expenseId: number) => {
     confirmAlert({
       customUI: ({ onClose }) => (
@@ -103,8 +120,8 @@ export default function AdminExpenses() {
     <AppLayout breadcrumbs={[{ title: "Expenses", href: "/admin/expenses" }]}>
       <Head title="Expenses" />
       <div className="flex flex-col gap-4 rounded-xl p-4">
-        <div className="p-4 bg-gray-800 rounded-xl w-full overflow-x-auto max-w-5xl">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div className="p-10 bg-gray-800 rounded-xl w-full overflow-x-auto max-w-8xl"> {/* Increased vertical padding */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-15">
             <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
               <span>Expenses</span>
             </h3>
@@ -121,6 +138,18 @@ export default function AdminExpenses() {
                   initialValue={searchTerm}
                   onSearchTermChange={setSearchTerm}
                   debounceTime={300}
+                />
+              </div>
+              <div className="relative flex items-center gap-2">
+                <label htmlFor="date-filter" className="text-sm text-gray-300">
+                  Filter by Date:
+                </label>
+                <input
+                  id="date-filter"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="px-4 py-2 rounded-lg bg-gray-700 text-white border-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>

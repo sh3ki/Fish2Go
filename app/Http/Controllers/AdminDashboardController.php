@@ -14,14 +14,39 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
+        $today = now()->toDateString();
+        
+        // Get count data
         $totalProducts = Product::count();
         $totalInventory = Inventory::count();
         $staffUsers = User::where('usertype', 'staff')->get();
+        
+        // Get financial data for today
+        $totalSales = Order::whereDate('created_at', $today)->sum('order_total');
+        $totalExpense = DB::table('expenses')->whereDate('created_at', $today)->sum('amount');
+        $totalCash = $totalSales - $totalExpense;
+        $totalDeposited = DB::table('summaries')->whereDate('created_at', $today)->sum('total_deposited');
+        
+        // Get payment method breakdowns
+        $cashSales = Order::where('order_payment_method', 'cash')->whereDate('created_at', $today)->sum('order_total');
+        $gcashSales = Order::where('order_payment_method', 'gcash')->whereDate('created_at', $today)->sum('order_total');
+        $grabfoodSales = Order::where('order_payment_method', 'grabfood')->whereDate('created_at', $today)->sum('order_total');
+        $foodpandaSales = Order::where('order_payment_method', 'foodpanda')->whereDate('created_at', $today)->sum('order_total');
 
         return Inertia::render('dashboard', [
             'totalProducts' => $totalProducts,
             'totalInventory' => $totalInventory,
             'staffUsers' => $staffUsers,
+            'todayFinancials' => [
+                'totalSales' => $totalSales,
+                'totalExpense' => $totalExpense,
+                'totalCash' => $totalCash,
+                'totalDeposited' => $totalDeposited,
+                'cashSales' => $cashSales,
+                'gcashSales' => $gcashSales,
+                'grabfoodSales' => $grabfoodSales,
+                'foodpandaSales' => $foodpandaSales,
+            ],
         ]);
     }
 
