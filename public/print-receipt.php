@@ -257,19 +257,6 @@ $obj->type = 0;
 $obj->content = '';
 $obj->bold = 0;
 $obj->align = 0;
-array_push($receiptData, $obj);
-$obj = new stdClass();
-$obj->type = 0;
-$obj->content = '';
-$obj->bold = 0;
-$obj->align = 0;
-array_push($receiptData, $obj);
-$obj = new stdClass();
-$obj->type = 0;
-$obj->content = '';
-$obj->bold = 0;
-$obj->align = 0;
-array_push($receiptData, $obj);
 
 // Output the JSON data
 echo json_encode($receiptData, JSON_FORCE_OBJECT);

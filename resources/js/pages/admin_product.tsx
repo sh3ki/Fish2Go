@@ -596,6 +596,8 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                 activeFilter={activeCategory}
                 onSelectFilter={(categoryId) => filterByCategory(categoryId as number | "all" | "available")}
                 includeAvailable={true}
+                availableOptionText="In Stock"
+                allOptionText="All Categories"
               />
               
               <SortButton

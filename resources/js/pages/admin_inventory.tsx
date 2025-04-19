@@ -512,6 +512,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                 activeFilter={activeFilter}
                 onSelectFilter={handleFilterChange}
                 includeAvailable={false}
+                allOptionText="All Inventory"
               />
               
               <SortButton

@@ -14,7 +14,19 @@ class Expense extends Model
         'title',
         'description',
         'amount',
-        'date',
+        'expense_date',
+    ];
+
+    protected $casts = [
+        'expense_date' => 'date',
+        'amount' => 'decimal:2',
+    ];
+    
+    // Add date attribute casting
+    protected $dates = [
+        'expense_date',
+        'created_at',
+        'updated_at'
     ];
 
     public function user()

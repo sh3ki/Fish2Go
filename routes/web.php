@@ -36,6 +36,12 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+// Webhook endpoints for daily inventory update - accessible without middleware
+Route::post('/webhook/inventory-update', [App\Http\Controllers\StaffInventoryController::class, 'updateInventoryWebhook'])
+    ->name('webhook.inventory-update');
+Route::get('/webhook/inventory-update', [App\Http\Controllers\StaffInventoryController::class, 'updateInventoryWebhook'])
+    ->name('webhook.inventory-update.get');
+
 Route::middleware(['admin'])->group(function () {
     //Dashboard
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');

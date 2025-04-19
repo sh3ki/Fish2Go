@@ -4,6 +4,9 @@ import laravel from 'laravel-vite-plugin';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
+// Force the correct APP_URL
+process.env.APP_URL = 'http://192.168.1.3:8000';
+
 export default defineConfig({
     plugins: [
         laravel({
@@ -11,17 +14,19 @@ export default defineConfig({
             ssr: 'resources/js/ssr.tsx',
             refresh: true,
             detectTls: false,
+            // Force the URL explicitly 
+            url: 'http://192.168.1.3:8000',
         }),
         react(),
         tailwindcss(),
     ],
     server: {
-        host: '0.0.0.0', 
+        host: '192.168.1.3', // Changed from 0.0.0.0 to specific IP
         port: 5173,
         strictPort: true,
         https: false, // Never use HTTPS locally
         hmr: {
-            host: '192.168.1.10',
+            host: '192.168.1.3',
             protocol: 'ws',
         },
         cors: {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import StaffLayout from "@/components/staff/StaffLayout";
 import { type BreadcrumbItem } from "@/types";
 import { Head } from "@inertiajs/react";
@@ -52,6 +52,14 @@ export default function TransactionPOS() {
     const [activeFilter, setActiveFilter] = useState<string>("all");
     const tableRef = useRef<HTMLDivElement>(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
+    
+    // New state for lazy loading
+    const [page, setPage] = useState<number>(1);
+    const [hasMore, setHasMore] = useState<boolean>(true);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const [totalTransactions, setTotalTransactions] = useState<number>(0);
+    const loadingRef = useRef<HTMLDivElement>(null); // Reference for intersection observer
+    const itemsPerPage = 20; // Number of items to load per page
 
     // Format number utility function
     const formatNumber = (value: number | null | undefined): string => {
@@ -74,19 +82,59 @@ export default function TransactionPOS() {
     useEffect(() => {
         applyFilters();
     }, [sortField, sortDirection, searchTerm, activeFilter, transactions]);
+    
+    // Setup intersection observer for infinite scrolling
+    const observer = useRef<IntersectionObserver | null>(null);
+    const lastTransactionElementRef = useCallback((node: HTMLDivElement | null) => {
+        if (isLoadingMore) return;
+        if (observer.current) observer.current.disconnect();
+        
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && hasMore && !isLoading && !isLoadingMore) {
+                loadMoreTransactions();
+            }
+        }, { threshold: 0.5 });
+        
+        if (node) observer.current.observe(node);
+    }, [hasMore, isLoading, isLoadingMore]);
 
-    const fetchTransactions = async () => {
-        setIsLoading(true);
+    const fetchTransactions = async (pageNum: number = 1, reset: boolean = true) => {
+        if (reset) setIsLoading(true);
+        else setIsLoadingMore(true);
+        
         try {
-            const response = await axios.get("/staff/transactions/data");
-            setTransactions(response.data);
-            setFilteredTransactions(response.data);
+            const response = await axios.get("/staff/transactions/data", {
+                params: {
+                    page: pageNum,
+                    limit: itemsPerPage
+                }
+            });
+            
+            const newTransactions = response.data.data;
+            setHasMore(response.data.meta.has_more);
+            setTotalTransactions(response.data.meta.total);
+            
+            if (reset) {
+                setTransactions(newTransactions);
+            } else {
+                // Append new transactions to existing ones
+                setTransactions(prevTransactions => [...prevTransactions, ...newTransactions]);
+            }
+            
         } catch (error) {
             console.error("Error fetching transactions:", error);
             toast.error("Failed to load transaction data");
         } finally {
-            setIsLoading(false);
+            if (reset) setIsLoading(false);
+            else setIsLoadingMore(false);
         }
+    };
+    
+    const loadMoreTransactions = () => {
+        if (!hasMore || isLoadingMore) return;
+        const nextPage = page + 1;
+        setPage(nextPage);
+        fetchTransactions(nextPage, false);
     };
 
     const applyFilters = () => {
@@ -174,7 +222,6 @@ export default function TransactionPOS() {
     };
 
     const filterOptions = [
-        { id: "all", name: "All Methods" },
         { id: "cash", name: "Cash" },
         { id: "gcash", name: "GCash" },
         { id: "foodpanda", name: "FoodPanda" },
@@ -207,6 +254,7 @@ export default function TransactionPOS() {
                                 activeFilter={activeFilter}
                                 onSelectFilter={handleFilterChange}
                                 includeAvailable={false}
+                                allOptionText="All Methods"
                             />
                             
                             <SortButton
@@ -227,85 +275,77 @@ export default function TransactionPOS() {
                 <div 
                     className="flex-1 p-2 pt-0 relative"
                     style={{ 
-                        height: 'calc(100vh - 150px)',
+                        height: 'calc(100vh - 104px)',
                         minHeight: '500px'
                     }}
                 >
                     <div className="relative overflow-x-auto bg-gray-900 rounded-lg shadow">
-                        {/* Table Header */}
-                        <div className="sticky top-0 bg-gray-900 shadow-md">
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-700 border-collapse">
-                                    <thead className="bg-gray-700">
-                                        <tr>
-                                            <th 
-                                                className={`px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "order_id" ? "bg-gray-600" : ""}`}
-                                                onClick={() => handleSortOption("order_id", sortField === "order_id" && sortDirection === "asc" ? "desc" : "asc")}
-                                            >
-                                                <div className="flex items-center justify-center">
-                                                    Order ID
-                                                    {sortField === "order_id" && (
-                                                        sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
-                                                    )}
-                                                </div>
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Image
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Product
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Price
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Qty
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Amount
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Subtotal
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Tax
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Discount
-                                            </th>
-                                            <th 
-                                                className={`px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "order_total" ? "bg-gray-600" : ""}`}
-                                                onClick={() => handleSortOption("order_total", sortField === "order_total" && sortDirection === "asc" ? "desc" : "asc")}
-                                            >
-                                                <div className="flex items-center justify-center">
-                                                    Total
-                                                    {sortField === "order_total" && (
-                                                        sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
-                                                    )}
-                                                </div>
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Payment
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Change
-                                            </th>
-                                            <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
-                                                Method
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        {/* Table Body with Scrolling */}
+                        {/* Single table with sticky header */}
                         <div 
                             ref={tableRef}
                             className="overflow-x-auto overflow-y-auto"
-                            style={{ maxHeight: 'calc(100vh - 141px)' }}
+                            style={{ maxHeight: 'calc(100vh - 104px)' }}
                         >
                             <table className="min-w-full divide-y divide-gray-700 border-collapse">
+                                <thead className="bg-gray-700 sticky top-0 z-10">
+                                    <tr>
+                                        <th 
+                                            className={`px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "order_id" ? "bg-gray-600" : ""}`}
+                                            onClick={() => handleSortOption("order_id", sortField === "order_id" && sortDirection === "asc" ? "desc" : "asc")}
+                                        >
+                                            <div className="flex items-center justify-center">
+                                                ID
+                                                {sortField === "order_id" && (
+                                                    sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
+                                                )}
+                                            </div>
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Image
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Product
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Price
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Qty
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Amount
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Subtotal
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Tax
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Discount
+                                        </th>
+                                        <th 
+                                            className={`px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "order_total" ? "bg-gray-600" : ""}`}
+                                            onClick={() => handleSortOption("order_total", sortField === "order_total" && sortDirection === "asc" ? "desc" : "asc")}
+                                        >
+                                            <div className="flex items-center justify-center">
+                                                Total
+                                                {sortField === "order_total" && (
+                                                    sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
+                                                )}
+                                            </div>
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Payment
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Change
+                                        </th>
+                                        <th className="px-2 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider bg-gray-700">
+                                            Method
+                                        </th>
+                                    </tr>
+                                </thead>
                                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                                     {isLoading ? (
                                         <tr>
@@ -323,8 +363,9 @@ export default function TransactionPOS() {
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredTransactions.map((transaction) => {
+                                        filteredTransactions.map((transaction, index) => {
                                             const rowSpan = transaction.products.length;
+                                            const isLastItem = index === filteredTransactions.length - 1;
                                             
                                             return (
                                                 <>
@@ -332,7 +373,7 @@ export default function TransactionPOS() {
                                                     <tr key={`${transaction.order_id}-${product.product_id}-${productIndex}`} className="hover:bg-gray-700/60 transition-colors">
                                                         {/* Order ID - Only for the first product in each order */}
                                                         {productIndex === 0 && (
-                                                            <td rowSpan={rowSpan} className="px-2 text-center py-1 whitespace-nowrap text-sm font-medium text-gray-300 border-r border-gray-700">
+                                                            <td rowSpan={rowSpan} className="px-2 text-center py-1 whitespace-nowrap text-sm text-gray-300 border-r border-gray-700">
                                                                 {transaction.order_id}
                                                             </td>
                                                         )}
@@ -357,7 +398,7 @@ export default function TransactionPOS() {
                                                         </td>
                                                         
                                                         {/* Product Name */}
-                                                        <td className="px-2 py-1 text-left whitespace-nowrap text-sm font-medium text-gray-300">
+                                                        <td className="px-2 py-1 text-left whitespace-nowrap text-sm text-gray-300">
                                                             {product.product_name}
                                                         </td>
                                                         

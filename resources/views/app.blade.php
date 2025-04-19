@@ -40,7 +40,7 @@
         {{-- Simple version that works in all scenarios --}}
         @php
             $isNgrokRequest = strpos(request()->getHost(), 'ngrok-free.app') !== false;
-            $viteUrl = $isNgrokRequest ? env('NGROK_VITE_URL') : 'http://192.168.1.10:5173';
+            $viteUrl = $isNgrokRequest ? env('NGROK_VITE_URL') : 'http://192.168.169.204:5173';
         @endphp
 
         @if($isNgrokRequest)

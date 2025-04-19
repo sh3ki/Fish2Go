@@ -12,6 +12,9 @@ interface FilterButtonProps {
   activeFilter: number | string;
   onSelectFilter: (filterId: number | string) => void;
   includeAvailable?: boolean;
+  includeAll?: boolean; // New prop to control if "All" button should be shown
+  allOptionText?: string; // Text for "All" option
+  availableOptionText?: string; // Text for "Available" option
   className?: string;
   buttonClassName?: string;
 }
@@ -21,12 +24,18 @@ const FilterButton: React.FC<FilterButtonProps> = ({
   activeFilter,
   onSelectFilter,
   includeAvailable = true,
+  includeAll = true, // Default to showing "All" option
+  allOptionText = "All Items", // Default text for "All" option
+  availableOptionText = "Available", // Default text for "Available" option
   className = "",
   buttonClassName = "bg-gray-500 rounded-lg flex items-center justify-center h-8"
 }) => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterModalRef = useRef<HTMLDivElement>(null);
+
+  // Check if options array already has an "all" option
+  const hasAllOption = options.some(option => option.id === "all");
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -67,20 +76,23 @@ const FilterButton: React.FC<FilterButtonProps> = ({
           className="absolute right-0 p-0.5 w-40 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50"
         >
           <div className="py-0.5" role="menu" aria-orientation="vertical">
-            <button
-              onClick={() => {
-                onSelectFilter("all");
-                setShowFilterModal(false);
-              }}
-              className={`block w-full text-left px-4 py-2 text-sm ${
-                activeFilter === "all" 
-                ? "bg-gray-600 text-white" 
-                : "text-white hover:bg-gray-600"
-              }`}
-              role="menuitem"
-            >
-              All items
-            </button>
+            {/* Only show the default "All" button if includeAll is true AND there's no custom "all" option */}
+            {includeAll && !hasAllOption && (
+              <button
+                onClick={() => {
+                  onSelectFilter("all");
+                  setShowFilterModal(false);
+                }}
+                className={`block w-full text-left px-4 py-2 text-sm ${
+                  activeFilter === "all" 
+                  ? "bg-gray-600 text-white" 
+                  : "text-white hover:bg-gray-600"
+                }`}
+                role="menuitem"
+              >
+                {allOptionText}
+              </button>
+            )}
             
             {includeAvailable && (
               <button
@@ -95,7 +107,7 @@ const FilterButton: React.FC<FilterButtonProps> = ({
                 }`}
                 role="menuitem"
               >
-                Available
+                {availableOptionText}
               </button>
             )}
             

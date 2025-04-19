@@ -60,6 +60,15 @@ export default function InventoryPOS() {
         return Number.isInteger(numValue) ? numValue.toString() : numValue.toFixed(2).replace(/\.?0+$/, '');
     };
     
+    // Add getStatusText function from admin_inventory.tsx
+    const getStatusText = (qty: number): string => {
+        if (qty >= 30) return "High Stock";
+        if (qty >= 10) return "In Stock";
+        if (qty >= 5) return "Low Stock";
+        if (qty == 0) return "Out of Stock";
+        return "Backorder";
+    };
+
     // Initialize inventory data
     useEffect(() => {
         fetchInventory();
@@ -443,7 +452,6 @@ export default function InventoryPOS() {
     };
 
     const filterOptions = [
-        { id: "all", name: "All Items" },
         { id: "available", name: "Available" },
         { id: "lowstock", name: "Low Stock" },
         { id: "outofstock", name: "Out of Stock" },
@@ -564,6 +572,7 @@ export default function InventoryPOS() {
                                 activeFilter={activeFilter}
                                 onSelectFilter={handleFilterChange}
                                 includeAvailable={false}
+                                allOptionText="All Items"
                             />
                             
                             <SortButton
@@ -583,7 +592,7 @@ export default function InventoryPOS() {
                         <div className="flex justify-end gap-2">
                             <Button 
                                 onClick={handleSaveButtonClick}
-                                className="bg-gray-500 rounded-lg flex items-center gap-1 h-8 px-3"
+                                className="bg-gray-500 rounded-lg flex items-center gap-1 h-8 w-8"
                                 disabled={isSaving}
                             >
                                 {isSaving ? (
@@ -594,7 +603,6 @@ export default function InventoryPOS() {
                                 ) : (
                                     <>
                                         <Save className="h-4 w-4" />
-                                        Save Changes
                                     </>
                                 )}
                             </Button>
@@ -606,15 +614,19 @@ export default function InventoryPOS() {
                 <div 
                     className="flex-1 p-2 pt-0 relative"
                     style={{ 
-                        height: 'calc(100vh - 150px)',
+                        height: 'calc(100vh - 104px)',
                         minHeight: '500px'
                     }}
                 >
                     <div className="relative overflow-x-auto bg-gray-900 rounded-lg shadow">
-                        {/* Table Header */}
-                        <div className="sticky top-0 bg-gray-900 shadow-md">
+                        {/* Single table with sticky header */}
+                        <div 
+                            ref={tableRef}
+                            className="overflow-x-auto overflow-y-auto"
+                            style={{ maxHeight: 'calc(100vh - 104px)' }}
+                        >
                             <table className="min-w-full divide-y divide-gray-700 border-collapse">
-                                <thead className="bg-gray-700">
+                                <thead className="bg-gray-700 sticky top-0 z-10">
                                     <tr>
                                         <th 
                                             className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-14 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "inventory_id" ? "bg-gray-600" : ""}`}
@@ -640,6 +652,10 @@ export default function InventoryPOS() {
                                                     sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
                                                 )}
                                             </div>
+                                        </th>
+                                        {/* Add new Status column */}
+                                        <th className="px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-28 bg-gray-700">
+                                            Status
                                         </th>
                                         <th
                                             className={`px-1 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-30 bg-gray-700 cursor-pointer hover:bg-gray-600 ${sortField === "beginning_qty" ? "bg-gray-600" : ""}`}
@@ -668,7 +684,7 @@ export default function InventoryPOS() {
                                             onClick={() => handleSortOption("ending_qty", sortField === "ending_qty" && sortDirection === "asc" ? "desc" : "asc")}
                                         >
                                             <div className="flex items-center justify-center">
-                                                Inv. End
+                                                Inv. End.
                                                 {sortField === "ending_qty" && (
                                                     sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
                                                 )}
@@ -676,20 +692,10 @@ export default function InventoryPOS() {
                                         </th>
                                     </tr>
                                 </thead>
-                            </table>
-                        </div>
-                        
-                        {/* Table Body with Scrolling */}
-                        <div 
-                            ref={tableRef}
-                            className="overflow-y-auto"
-                            style={{ maxHeight: 'calc(100vh - 141px)' }}
-                        >
-                            <table className="min-w-full divide-y divide-gray-700 border-collapse">
                                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-6 text-center text-gray-400">
+                                            <td colSpan={8} className="px-6 py-6 text-center text-gray-400">
                                                 <div className="flex justify-center items-center">
                                                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
                                                     <span className="font-medium">Loading inventory data...</span>
@@ -698,7 +704,7 @@ export default function InventoryPOS() {
                                         </tr>
                                     ) : filteredInventory.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-6 text-center text-gray-400">
+                                            <td colSpan={8} className="px-6 py-6 text-center text-gray-400">
                                                 <span className="font-medium">No inventory items found</span>
                                             </td>
                                         </tr>
@@ -729,6 +735,24 @@ export default function InventoryPOS() {
                                                 </td>
                                                 <td className="px-1 py-1 pl-10 text-left whitespace-nowrap text-sm font-medium w-80 text-gray-300">
                                                     {item.inventory_name}
+                                                </td>
+                                                {/* Add status cell */}
+                                                <td className="px-1 py-1 text-center whitespace-nowrap w-28">
+                                                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                        ${
+                                                            item.beginning_qty >= 30
+                                                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                                                : item.beginning_qty >= 10
+                                                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                                                : item.beginning_qty >= 5
+                                                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                                                : item.beginning_qty === 0
+                                                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                                                : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                                                        }`}
+                                                    >
+                                                        {getStatusText(item.beginning_qty || 0)}
+                                                    </span>
                                                 </td>
                                                 <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-30">
                                                     {formatNumber(item.beginning_qty || 0)}

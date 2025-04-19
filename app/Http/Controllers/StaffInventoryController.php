@@ -118,4 +118,79 @@ class StaffInventoryController extends Controller
             'updated_items' => $updatedItems
         ]);
     }
+
+    /**
+     * Webhook endpoint for automated inventory updates
+     * Called by external cron service at 11:59 PM daily
+     * 
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function updateInventoryWebhook(Request $request)
+    {
+        // Log all incoming webhook requests for debugging
+        \Log::info('Inventory webhook called', [
+            'ip' => $request->ip(),
+            'headers' => $request->headers->all(),
+            'payload' => $request->all()
+        ]);
+        
+        // Validate the webhook token for security - allow both header and query parameter
+        $token = $request->header('X-Webhook-Token') ?? $request->query('token');
+        $validToken = env('INVENTORY_WEBHOOK_TOKEN');
+        
+        if (!$token || !$validToken || $token !== $validToken) {
+            \Log::warning('Unauthorized webhook access attempt', ['ip' => $request->ip()]);
+            return response()->json(['error' => 'Unauthorized access'], 401);
+        }
+        
+        try {
+            $today = Carbon::today()->format('Y-m-d');
+            \Log::info('Starting inventory update for ' . $today);
+            
+            // Get all inventory items with their used quantities for today
+            $inventoryUsedItems = InventoryUsed::where('date', $today)->get();
+            $updatedCount = 0;
+            
+            foreach ($inventoryUsedItems as $item) {
+                // Get the inventory item
+                $inventory = Inventory::find($item->inventory_id);
+                
+                if ($inventory) {
+                    \Log::info("Processing inventory item: {$inventory->inventory_name}, Current qty: {$inventory->inventory_qty}, Used: {$item->inventory_used}");
+                    
+                    // Subtract used quantity from inventory
+                    $inventory->inventory_qty -= $item->inventory_used;
+                    
+                    // Ensure inventory doesn't go below zero
+                    if ($inventory->inventory_qty < 0) {
+                        $inventory->inventory_qty = 0;
+                    }
+                    
+                    // Save the updated inventory
+                    $inventory->save();
+                    
+                    // Reset the used quantity for tomorrow
+                    $item->inventory_used = 0;
+                    $item->save();
+                    
+                    $updatedCount++;
+                }
+            }
+            
+            \Log::info("Inventory update completed: {$updatedCount} items updated");
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Inventory daily update completed successfully',
+                'items_updated' => $updatedCount,
+                'date' => $today
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in webhook inventory update: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Inventory update failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

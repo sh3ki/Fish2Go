@@ -24,7 +24,7 @@ export default function CookStation() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
-    const [activeCategory, setActiveCategory] = useState("all");
+    const [activeCategory, setActiveCategory] = useState("available");
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [grilledCategoryColor, setGrilledCategoryColor] = useState("#CCCCCC");
     const [focusedInputType, setFocusedInputType] = useState(null);

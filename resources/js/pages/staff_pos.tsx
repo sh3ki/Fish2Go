@@ -3,7 +3,7 @@ import { Head, usePage } from "@inertiajs/react";
 import StaffLayout from "@/components/staff/StaffLayout";
 import { type BreadcrumbItem } from "@/types";
 import { Button } from "@/components/ui/button";
-import { X, CirclePlus, CircleMinus, CircleX, AlertCircle, LayoutList } from "lucide-react";
+import { X, CirclePlus, CircleMinus, CircleX, CheckCircle, AlertCircle, LayoutList } from "lucide-react";
 import axios from "axios";
 import { router } from "@inertiajs/react";
 import SearchBar from "@/components/ui/search-bar"; // Import SearchBar component
@@ -27,7 +27,7 @@ export default function POS() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filteredProducts, setFilteredProducts] = useState([]);  // Initialize as empty array
     const [showCategoryModal, setShowCategoryModal] = useState(false);
-    const [activeCategory, setActiveCategory] = useState("all"); // Add this state to track active category
+    const [activeCategory, setActiveCategory] = useState("available"); // Changed default from "all" to "available"
     const categoryButtonRef = useRef(null);
     const categoryModalRef = useRef(null);
     const [showCheckoutModal, setShowCheckoutModal] = useState(false); // Add new state for checkout modal
@@ -76,7 +76,9 @@ export default function POS() {
     // Initialize filtered products with sorted products on component mount
     useEffect(() => {
         const sortedProducts = sortProductsByCategory(initialProducts);
-        setFilteredProducts(sortedProducts);
+        // Apply "available" filter by default
+        const availableProducts = sortedProducts.filter(product => parseInt(product.product_qty) > 0);
+        setFilteredProducts(availableProducts);
     }, [initialProducts]);
 
     // Handle search results from SearchBar component
@@ -578,7 +580,7 @@ export default function POS() {
                 
                 // Open receipt printing with actual order data
                 const printWindow = window.open(
-                    `my.bluetoothprint.scheme://http://192.168.1.10:8000/print-receipt.php?orderData=${encodedData}`,
+                    `my.bluetoothprint.scheme://http://192.168.169.204:8000/print-receipt.php?orderData=${encodedData}`,
                     "_blank"
                 );
                 
@@ -644,12 +646,16 @@ export default function POS() {
             <FullScreenPrompt onFullScreenChange={handleFullScreenChange} />
 
             {errorMessage && (
-                <div className="fixed top-4 right-4 z-50 bg-red-500 text-white p-3 rounded-md shadow-lg flex items-center animate-in fade-in slide-in-from-top-5 duration-300">
-                    <AlertCircle className="mr-2" size={20} />
+                <div className={`fixed top-4 right-4 z-50 p-3 rounded-md shadow-lg flex items-center animate-in fade-in slide-in-from-top-5 duration-300 ${errorMessage.includes("success") || errorMessage.includes("completed") || errorMessage.includes("Processing") ? "bg-green-500" : "bg-red-500"} text-white`}>
+                    {errorMessage.includes("success") || errorMessage.includes("completed") || errorMessage.includes("Processing") ? (
+                        <CheckCircle className="mr-2" size={20} />
+                    ) : (
+                        <AlertCircle className="mr-2" size={20} />
+                    )}
                     <span>{errorMessage}</span>
                     <button
                         onClick={() => setErrorMessage(null)}
-                        className="ml-4 text-white hover:text-red-200"
+                        className="ml-4 text-white hover:text-gray-200"
                     >
                         <X size={18} />
                     </button>

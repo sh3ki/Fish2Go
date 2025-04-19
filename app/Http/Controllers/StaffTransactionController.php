@@ -15,13 +15,25 @@ class StaffTransactionController extends Controller
     }
 
     /**
-     * Get all transactions with product details
+     * Get transactions with product details with pagination support
      * 
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-    public function getTransactions()
+    public function getTransactions(Request $request)
     {
-        // Get orders with their related products
+        // Get pagination parameters
+        $page = $request->input('page', 1);
+        $limit = $request->input('limit', 20);
+        $offset = ($page - 1) * $limit;
+        
+        // Get total count
+        $totalCount = DB::table('orders')
+            ->select('order_id')
+            ->distinct()
+            ->count('order_id');
+            
+        // Get orders with their related products with pagination
         $orders = DB::table('orders')
             ->select(
                 'orders.order_id',
@@ -74,6 +86,18 @@ class StaffTransactionController extends Controller
             ];
         }
         
-        return response()->json(array_values($groupedOrders));
+        // Convert to array and paginate manually
+        $ordersArray = array_values($groupedOrders);
+        $paginatedOrders = array_slice($ordersArray, $offset, $limit);
+        
+        return response()->json([
+            'data' => $paginatedOrders,
+            'meta' => [
+                'current_page' => (int)$page,
+                'per_page' => (int)$limit,
+                'total' => $totalCount,
+                'has_more' => ($offset + $limit) < $totalCount
+            ]
+        ]);
     }
 }
