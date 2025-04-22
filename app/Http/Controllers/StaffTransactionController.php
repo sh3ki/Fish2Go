@@ -15,7 +15,7 @@ class StaffTransactionController extends Controller
     }
 
     /**
-     * Get transactions with product details with pagination support
+     * Get transactions with product details for lazy loading
      * 
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
@@ -24,16 +24,66 @@ class StaffTransactionController extends Controller
     {
         // Get pagination parameters
         $page = $request->input('page', 1);
-        $limit = $request->input('limit', 20);
+        $limit = $request->input('limit', 20); // Default to 20 if not specified
         $offset = ($page - 1) * $limit;
+
+        // Get date range parameters
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
         
-        // Get total count
-        $totalCount = DB::table('orders')
-            ->select('order_id')
-            ->distinct()
-            ->count('order_id');
+        // Get the order subquery with date filtering if provided
+        $orderSubquery = DB::table('orders')
+            ->select('order_id', DB::raw('MAX(created_at) as latest_date'))
+            ->groupBy('order_id');
             
-        // Get orders with their related products with pagination
+        // Apply date range filter if provided
+        if ($startDate && $endDate) {
+            // Format the end date to include the entire day
+            $formattedEndDate = date('Y-m-d 23:59:59', strtotime($endDate));
+            
+            $orderSubquery->whereBetween('created_at', [
+                date('Y-m-d 00:00:00', strtotime($startDate)),
+                $formattedEndDate
+            ]);
+        }
+
+        // Get the total count with the same date filters
+        $totalCountQuery = DB::table('orders')
+            ->distinct();
+            
+        if ($startDate && $endDate) {
+            $formattedEndDate = date('Y-m-d 23:59:59', strtotime($endDate));
+            
+            $totalCountQuery->whereBetween('created_at', [
+                date('Y-m-d 00:00:00', strtotime($startDate)),
+                $formattedEndDate
+            ]);
+        }
+            
+        $totalCount = $totalCountQuery->count('order_id');
+
+        // Get paginated order IDs
+        $orderIds = DB::table(DB::raw("({$orderSubquery->toSql()}) as subquery"))
+            ->mergeBindings($orderSubquery)
+            ->orderBy('latest_date', 'desc')
+            ->skip($offset)
+            ->take($limit)
+            ->pluck('order_id');
+        
+        // If no orders found, return empty result with pagination metadata
+        if ($orderIds->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'meta' => [
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$limit,
+                    'total' => $totalCount,
+                    'has_more' => ($offset + $limit) < $totalCount
+                ]
+            ]);
+        }
+        
+        // Get orders with their related products for these IDs
         $orders = DB::table('orders')
             ->select(
                 'orders.order_id',
@@ -52,7 +102,7 @@ class StaffTransactionController extends Controller
                 'orders.order_quantity'
             )
             ->join('products', 'orders.product_id', '=', 'products.product_id')
-            ->orderBy('orders.created_at', 'desc')
+            ->whereIn('orders.order_id', $orderIds)
             ->get();
         
         // Group by order_id
@@ -86,12 +136,11 @@ class StaffTransactionController extends Controller
             ];
         }
         
-        // Convert to array and paginate manually
+        // Convert to array
         $ordersArray = array_values($groupedOrders);
-        $paginatedOrders = array_slice($ordersArray, $offset, $limit);
         
         return response()->json([
-            'data' => $paginatedOrders,
+            'data' => $ordersArray,
             'meta' => [
                 'current_page' => (int)$page,
                 'per_page' => (int)$limit,

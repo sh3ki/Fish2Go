@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('inventory', function (Blueprint $table) {
             $table->id('inventory_id');
             $table->string('inventory_name')->nullable(false);
-            $table->decimal('inventory_qty', 10, 2); // Changed to decimal to support float values
             $table->string('inventory_image')->nullable();
             $table->decimal('inventory_price', 10, 2);
             $table->timestamps();

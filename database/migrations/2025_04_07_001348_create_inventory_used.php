@@ -15,7 +15,9 @@ return new class extends Migration
             $table->id('inventory_used_id');
             $table->unsignedBigInteger('inventory_id');
             $table->date('date');
-            $table->integer('inventory_used');
+            $table->decimal('inventory_beg', 10, 2);
+            $table->decimal('inventory_used', 10, 2);
+            $table->decimal('inventory_end', 10, 2);
             $table->timestamps();
 
             // Foreign key constraint

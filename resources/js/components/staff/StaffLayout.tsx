@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase'; // Firestore DB
 import { cn } from '@/lib/utils';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { collection, getDocs, onSnapshot, query, setDoc, where } from 'firebase/firestore';
-import { CookingPot, CreditCard, Folder, HandCoins, LogOut, MessageCircleMore, NotebookPen, PhilippinePeso, ShoppingCart, Truck } from 'lucide-react';
+import { CookingPot, HardDrive, ClipboardList, Wallet, ReceiptText, ChefHat, CreditCard, LogOut, MessageCircleMore, Truck } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 
 interface StaffLayoutProps {
@@ -61,9 +61,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
         
         if (shouldBeFullScreen && !document.fullscreenElement) {
             // Try to enter full-screen mode automatically
-            document.documentElement.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-            });
+            document.documentElement.requestFullscreen();
         }
         
         // Monitor full-screen changes
@@ -93,27 +91,27 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                         <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
                     </div>
                     <div className="ml-1 grid flex-1 text-left text-sm">
-                        <span className="mb-0.5 truncate leading-none font-semibold">Fish2Go</span>
+                        <span className="mb-0.5 truncate leading-none font-semibold">Fredo's Grilling </span>
                     </div>
                 </div>
 
                 <h1 className="flex-1 text-center text-base font-semibold text-black dark:text-white">
                     {page.url === '/staff/cook'
-                        ? 'Cooks'
+                        ? 'Cook Products'
                         : page.url === '/staff/transactions'
-                        ? 'Transactions'
+                        ? 'Transaction History'
                         : page.url === '/staff/expenses'
-                        ? 'Expenses'
+                        ? 'Expense Management'
                         : page.url === '/staff/products'
-                        ? 'Products'
+                        ? 'Product Management'
                         : page.url === '/staff/inventory'
-                        ? 'Inventories'
+                        ? 'Inventory Management'
                         : page.url === '/staff/delivery'
-                        ? 'Deliveries'
+                        ? 'Delivery Management'
                         : page.url === '/staff/messages'
                         ? 'Messages'
                         : page.url === '/staff/summary'
-                        ? 'Summary'
+                        ? 'Sales Summary'
                         : 'Point of Sales'}
                 </h1>
 
@@ -139,7 +137,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/pos' ? 'bg-gray-800' : ''}`}
                             onClick={() => router.get(route('staff.pos'))}
                         >
-                            <HandCoins size={18} /> POS
+                            <HardDrive size={18} /> POS
                         </button>
                         <button
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/cook' ? 'bg-gray-800' : ''}`}
@@ -148,28 +146,28 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                             <CookingPot size={18} /> Cook
                         </button>
                         <button
-                            className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/expenses' ? 'bg-gray-800' : ''}`}
-                            onClick={() => router.get(route('staff.expenses'))}
+                            className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/transactions' ? 'bg-gray-800' : ''}`}
+                            onClick={() => router.get(route('staff.transactions'))}
                         >
-                            <PhilippinePeso size={18} /> Expenses
+                            <ReceiptText size={18} /> Transactions
                         </button>
-                        {/* <button
+                        <button
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/products' ? 'bg-gray-800' : ''}`}
                             onClick={() => router.get(route('staff.products'))}
                         >
-                            <ShoppingCart size={18} /> Products
-                        </button> */}
+                            <ChefHat size={18} /> Products
+                        </button>
+                        <button
+                            className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/expenses' ? 'bg-gray-800' : ''}`}
+                            onClick={() => router.get(route('staff.expenses'))}
+                        >
+                            <CreditCard size={18} /> Expenses
+                        </button>
                         <button
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/inventory' ? 'bg-gray-800' : ''}`}
                             onClick={() => router.get(route('staff.inventory'))}
                         >
-                            <Folder size={18} /> Inventory
-                        </button>
-                        <button
-                            className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/transactions' ? 'bg-gray-800' : ''}`}
-                            onClick={() => router.get(route('staff.transactions'))}
-                        >
-                            <CreditCard size={18} /> Transactions
+                            <ClipboardList size={18} /> Inventory
                         </button>
                         <button
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/delivery' ? 'bg-gray-800' : ''}`}
@@ -182,7 +180,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                             className={`flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700 ${currentUrl === '/staff/summary' ? 'bg-gray-800' : ''}`}
                             onClick={() => router.get(route('staff.summary'))}
                         >
-                            <CreditCard size={18} /> Summary
+                            <Wallet size={18} /> Summary
                         </button>
 
                         {/* 🔥 Messages with Unread Count */}

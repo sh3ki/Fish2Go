@@ -26,9 +26,11 @@ class InventoryUsed extends Model
      * @var array
      */
     protected $fillable = [
-        'date',
         'inventory_id',
-        'inventory_used'
+        'date',
+        'inventory_beg',
+        'inventory_used',
+        'inventory_end'
     ];
     
     /**

@@ -27,11 +27,13 @@ interface InventoryItem {
     inventory_qty: number;
     inventory_price: number;
     inventory_image: string | null;
-    inventory_used: number; // Add inventory_used field from database
+    inventory_used: number;
+    inventory_beg: number; // Beginning inventory from database
+    inventory_end: number; // Ending inventory from database
     created_at: string;
-    beginning_qty?: number; // Quantity at the beginning of the day
-    used_qty?: number; // Quantity used today
-    ending_qty?: number; // Quantity at the end of the day
+    beginning_qty?: number; // For UI display
+    used_qty?: number; // For UI display
+    ending_qty?: number; // For UI display
     original_used_qty?: number; // Store the original used qty for reference
 }
 
@@ -84,13 +86,13 @@ export default function InventoryPOS() {
         try {
             const response = await axios.get("/staff/inventory");
             
-            // Process the inventory data to include beginning/used/ending quantities
+            // Process the inventory data - ensure we're using the database values
             const processedInventory = response.data.map((item: InventoryItem) => ({
                 ...item,
-                beginning_qty: item.inventory_qty, // Initially set beginning qty to current qty
-                used_qty: item.inventory_used, // Use inventory_used from database as initial value
-                original_used_qty: item.inventory_used, // Store the original value for reference
-                ending_qty: item.inventory_qty - item.inventory_used // Calculate ending qty
+                beginning_qty: item.inventory_beg, 
+                used_qty: item.inventory_used,
+                original_used_qty: item.inventory_used,
+                ending_qty: item.inventory_end
             }));
             
             setInventory(processedInventory);
@@ -211,15 +213,21 @@ export default function InventoryPOS() {
         setActiveFilter(filterId as string);
     };
 
-    // Handle quantity adjustments
+    // Fix the increment/decrement logic to ensure proper whole number increments
     const adjustUsedQty = (id: number, delta: number) => {
         // Update the inventory and filtered inventory
         const updateInventory = (list: InventoryItem[]) =>
             list.map(item => {
                 if (item.inventory_id === id) {
+                    // Convert current value to prevent floating point issues
+                    const currentValue = Math.round((item.used_qty || 0) * 100) / 100;
+                    
                     // Ensure used_qty doesn't go below original_used_qty or above beginning_qty
                     const minValue = item.original_used_qty || 0;
-                    const newUsedQty = Math.max(minValue, Math.min((item.used_qty || 0) + delta, item.beginning_qty || 0));
+                    const newUsedQty = Math.max(
+                        minValue, 
+                        Math.min(currentValue + delta, item.beginning_qty || 0)
+                    );
                     
                     return {
                         ...item,
@@ -389,10 +397,11 @@ export default function InventoryPOS() {
         }
     };
 
-    // Function to get changed inventory items
+    // Function to get changed inventory items - exclude items with zero used qty
     const getChangedItems = () => {
         return inventory.filter(item => 
-            (item.used_qty || 0) !== (item.original_used_qty || 0)
+            (item.used_qty || 0) !== (item.original_used_qty || 0) && 
+            (item.used_qty || 0) > 0
         );
     };
 
@@ -457,6 +466,14 @@ export default function InventoryPOS() {
         { id: "outofstock", name: "Out of Stock" },
     ];
 
+    // Add this helper function to check for changes in inventory items
+    const hasChangesToSave = () => {
+        // Check if there are any changed items (modify this according to your inventory logic)
+        return inventory.some(item => {
+            return (item.used_qty || 0) !== (item.original_used_qty || 0);
+        });
+    };
+
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
             <Head title="Inventory" />
@@ -485,7 +502,7 @@ export default function InventoryPOS() {
                         {/* Close button */}
                         <button 
                             onClick={() => setShowSaveModal(false)}
-                            className="absolute top-1 right-1 text-white-500"
+                            className="absolute top-2 right-2 text-white"
                         >
                             <CircleX size={20} />
                         </button>
@@ -509,22 +526,14 @@ export default function InventoryPOS() {
                                     getChangedItems().map((item) => {
                                         // Calculate the difference between new and original values
                                         const difference = (item.used_qty || 0) - (item.original_used_qty || 0);
-                                        // Format the difference with a + sign for increases
-                                        const formattedDifference = difference > 0 
-                                            ? '+' + formatNumber(difference) 
-                                            : formatNumber(difference);
-                                        // Determine text color based on the difference
-                                        const textColorClass = difference > 0 
-                                            ? "text-green-400" 
-                                            : difference < 0 
-                                                ? "text-red-400" 
-                                                : "text-white";
+                                        // Format the difference with a minus sign and space for all changes
+                                        const formattedDifference = "- " + formatNumber(Math.abs(difference));
                                         
                                         return (
                                             <div key={item.inventory_id} className="grid grid-cols-12 py-1 px-2 border-b border-gray-700">
                                                 <span className="col-span-7 text-white text-sm font-medium truncate">{item.inventory_name}</span>
                                                 <span className="col-span-3 text-white text-sm text-center">Used:</span>
-                                                <span className={`col-span-2 text-sm text-center ${textColorClass}`}>{formattedDifference}</span>
+                                                <span className="col-span-2 text-sm text-center text-red-400">{formattedDifference}</span>
                                             </div>
                                         );
                                     })
@@ -559,7 +568,7 @@ export default function InventoryPOS() {
                     <div className="flex items-center mb-2 justify-between">
                         <div className="flex items-center gap-1.5 bg-transparent w-5/9 rounded-lg">
                             <SearchBar
-                                placeholder="Search Inventory"
+                                placeholder="Search Inventories"
                                 items={inventory}
                                 searchField="inventory_name"
                                 onSearchResults={handleSearchResults}
@@ -572,7 +581,7 @@ export default function InventoryPOS() {
                                 activeFilter={activeFilter}
                                 onSelectFilter={handleFilterChange}
                                 includeAvailable={false}
-                                allOptionText="All Items"
+                                allOptionText="All Inventories"
                             />
                             
                             <SortButton
@@ -592,18 +601,14 @@ export default function InventoryPOS() {
                         <div className="flex justify-end gap-2">
                             <Button 
                                 onClick={handleSaveButtonClick}
-                                className="bg-gray-500 rounded-lg flex items-center gap-1 h-8 w-8"
-                                disabled={isSaving}
+                                className={`rounded-lg flex items-center gap-1 h-8 w-8 
+                                    ${hasChangesToSave() ? "bg-green-600 hover:bg-green-700" : "bg-gray-500 opacity-50 cursor-not-allowed"}`}
+                                disabled={isSaving || !hasChangesToSave()}
                             >
                                 {isSaving ? (
-                                    <>
-                                        <Loader2 className="animate-spin h-4 w-4" />
-                                        Saving...
-                                    </>
+                                    <Loader2 className="animate-spin h-4 w-4" />
                                 ) : (
-                                    <>
-                                        <Save className="h-4 w-4" />
-                                    </>
+                                    <Save className="h-4 w-4" />
                                 )}
                             </Button>
                         </div>
@@ -754,7 +759,7 @@ export default function InventoryPOS() {
                                                         {getStatusText(item.beginning_qty || 0)}
                                                     </span>
                                                 </td>
-                                                <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-30">
+                                                <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-28">
                                                     {formatNumber(item.beginning_qty || 0)}
                                                 </td>
                                                 <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-36">
@@ -789,7 +794,7 @@ export default function InventoryPOS() {
                                                         </button>
                                                     </div>
                                                 </td>
-                                                <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-30">
+                                                <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-28">
                                                     {formatNumber(item.ending_qty || 0)}
                                                 </td>
                                             </tr>

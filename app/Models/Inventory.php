@@ -19,10 +19,17 @@ class Inventory extends Model
 
     protected $fillable = [
         'inventory_name',
-        'inventory_qty',
         'inventory_image',
         'inventory_price',
     ];
 
     public $timestamps = true;
+    
+    /**
+     * Get the inventory usage records associated with this inventory item.
+     */
+    public function inventoryUsed()
+    {
+        return $this->hasMany(InventoryUsed::class, 'inventory_id');
+    }
 }

@@ -6,7 +6,7 @@ export default function AppLogoIcon(props: React.ImgHTMLAttributes<HTMLImageElem
     useEffect(() => {
         const updateLogo = () => {
             const isDarkMode = document.documentElement.classList.contains("dark");
-            setLogo(isDarkMode ? "/images/f2g.png" : "/images/f2g_logo_white.png");
+            setLogo(isDarkMode ? "/images/f2g_logo_black.png" : "/images/f2g_logo_white.png");
         };
 
         updateLogo(); // Set on mount

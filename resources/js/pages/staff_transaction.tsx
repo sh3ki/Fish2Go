@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import StaffLayout from "@/components/staff/StaffLayout";
 import { type BreadcrumbItem } from "@/types";
 import { Head } from "@inertiajs/react";
@@ -9,8 +9,15 @@ import {
 import SearchBar from "@/components/ui/search-bar";
 import FilterButton from "@/components/ui/filter-button";
 import SortButton from "@/components/ui/sort-button";
+import DateRangePicker from "@/components/ui/date-range-picker";
 import toast, { Toaster } from "react-hot-toast";
 import FullScreenPrompt from "@/components/staff/FullScreenPrompt";
+import { format, isSameDay, isWithinInterval, parseISO } from "date-fns";
+
+// Format date range to "Jan 02, 2025 - Jan 20, 2025" format
+const formatDateRange = (start: Date, end: Date): string => {
+    return `${format(start, 'MMM dd, yyyy')} - ${format(end, 'MMM dd, yyyy')}`;
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -53,13 +60,29 @@ export default function TransactionPOS() {
     const tableRef = useRef<HTMLDivElement>(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
     
+    // Date range state
+    const [startDate, setStartDate] = useState<Date>(new Date());
+    const [endDate, setEndDate] = useState<Date>(new Date());
+    const [isDateRangeActive, setIsDateRangeActive] = useState<boolean>(true);
+    const [formattedDateRange, setFormattedDateRange] = useState<string>(
+        formatDateRange(new Date(), new Date())
+    );
+    
     // New state for lazy loading
     const [page, setPage] = useState<number>(1);
     const [hasMore, setHasMore] = useState<boolean>(true);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [totalTransactions, setTotalTransactions] = useState<number>(0);
     const loadingRef = useRef<HTMLDivElement>(null); // Reference for intersection observer
-    const itemsPerPage = 20; // Number of items to load per page
+    const itemsPerPage = 20; // Changed from 15 to 20 items per batch
+    const [allTransactionsLoaded, setAllTransactionsLoaded] = useState<boolean>(false);
+    const loadingTriggerRef = useRef<HTMLDivElement>(null); // Reference for intersection observer
+    
+    // Track the latest batch number
+    const [latestBatch, setLatestBatch] = useState<number>(0);
+
+    // Set up loading trigger rows - specifically for the 15th item of each batch
+    const loadTriggerRefs = useRef<{[key: string]: HTMLTableRowElement | null}>({});
 
     // Format number utility function
     const formatNumber = (value: number | null | undefined): string => {
@@ -75,72 +98,121 @@ export default function TransactionPOS() {
     
     // Initialize transaction data
     useEffect(() => {
-        fetchTransactions();
+        // Set default to today's date for both start and end
+        const todayDate = new Date();
+        setStartDate(todayDate);
+        setEndDate(todayDate);
+        setFormattedDateRange(formatDateRange(todayDate, todayDate));
+        
+        // Fetch first batch of transactions
+        fetchTransactionsBatch(1, todayDate, todayDate);
     }, []);
 
-    // Apply filters, search and sort
+    // Apply filters, search and sort whenever filter criteria change
     useEffect(() => {
         applyFilters();
     }, [sortField, sortDirection, searchTerm, activeFilter, transactions]);
-    
-    // Setup intersection observer for infinite scrolling
-    const observer = useRef<IntersectionObserver | null>(null);
-    const lastTransactionElementRef = useCallback((node: HTMLDivElement | null) => {
-        if (isLoadingMore) return;
-        if (observer.current) observer.current.disconnect();
-        
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore && !isLoading && !isLoadingMore) {
-                loadMoreTransactions();
-            }
-        }, { threshold: 0.5 });
-        
-        if (node) observer.current.observe(node);
-    }, [hasMore, isLoading, isLoadingMore]);
 
-    const fetchTransactions = async (pageNum: number = 1, reset: boolean = true) => {
-        if (reset) setIsLoading(true);
+    // Set up intersection observer to monitor the 15th item of the latest batch
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                // Only consider triggers from the latest batch
+                const latestBatchTrigger = loadTriggerRefs.current[`trigger-${latestBatch}`];
+                if (entries.some(entry => entry.target === latestBatchTrigger && entry.isIntersecting) && 
+                    hasMore && !isLoading && !isLoadingMore) {
+                    loadMoreTransactions();
+                }
+            },
+            { threshold: 0.1 }
+        );
+        
+        // Only observe the trigger for the latest batch
+        const latestTrigger = loadTriggerRefs.current[`trigger-${latestBatch}`];
+        if (latestTrigger) {
+            observer.observe(latestTrigger);
+        }
+        
+        return () => {
+            // Clean up by unobserving all elements
+            Object.values(loadTriggerRefs.current).forEach(element => {
+                if (element) observer.unobserve(element);
+            });
+        };
+    }, [hasMore, isLoading, isLoadingMore, latestBatch, filteredTransactions]);
+
+    const fetchTransactionsBatch = async (pageNum: number = 1, start?: Date, end?: Date) => {
+        if (pageNum === 1) setIsLoading(true);
         else setIsLoadingMore(true);
+        
+        // Use the parameters or fall back to state values
+        const startDateToUse = start || startDate;
+        const endDateToUse = end || endDate;
         
         try {
             const response = await axios.get("/staff/transactions/data", {
                 params: {
                     page: pageNum,
-                    limit: itemsPerPage
+                    limit: itemsPerPage,
+                    start_date: startDateToUse.toISOString().split('T')[0],
+                    end_date: endDateToUse.toISOString().split('T')[0]
                 }
             });
             
-            const newTransactions = response.data.data;
-            setHasMore(response.data.meta.has_more);
-            setTotalTransactions(response.data.meta.total);
+            const newTransactions = response.data.data || [];
             
-            if (reset) {
-                setTransactions(newTransactions);
-            } else {
-                // Append new transactions to existing ones
-                setTransactions(prevTransactions => [...prevTransactions, ...newTransactions]);
+            // Use server-provided metadata to determine if there are more transactions
+            const hasMoreData = response.data.meta?.has_more ?? false;
+            setHasMore(hasMoreData);
+            
+            if (response.data.meta?.total) {
+                setTotalTransactions(response.data.meta.total);
             }
+            
+            if (!hasMoreData) {
+                setAllTransactionsLoaded(true);
+            }
+            
+            // Update the latest batch number
+            setLatestBatch(pageNum - 1);
+            
+            // Add new transactions to existing ones
+            setTransactions(prevTransactions => {
+                if (pageNum === 1) {
+                    return newTransactions;
+                } else {
+                    return [...prevTransactions, ...newTransactions];
+                }
+            });
             
         } catch (error) {
             console.error("Error fetching transactions:", error);
             toast.error("Failed to load transaction data");
         } finally {
-            if (reset) setIsLoading(false);
+            if (pageNum === 1) setIsLoading(false);
             else setIsLoadingMore(false);
         }
     };
     
     const loadMoreTransactions = () => {
-        if (!hasMore || isLoadingMore) return;
-        const nextPage = page + 1;
-        setPage(nextPage);
-        fetchTransactions(nextPage, false);
+        if (hasMore && !isLoadingMore && !isLoading) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchTransactionsBatch(nextPage);
+        }
     };
 
     const applyFilters = () => {
         let filtered = [...transactions];
 
-        // Apply search filter
+        // Step 1: Apply payment method filter first
+        if (activeFilter !== "all") {
+            filtered = filtered.filter(item => 
+                item.order_payment_method.toLowerCase() === activeFilter.toLowerCase()
+            );
+        }
+        
+        // Step 2: Apply search filter
         if (searchTerm.trim() !== "") {
             const query = searchTerm.toLowerCase();
             filtered = filtered.filter(
@@ -154,15 +226,44 @@ export default function TransactionPOS() {
             );
         }
 
-        // Apply payment method filter
-        if (activeFilter !== "all") {
-            filtered = filtered.filter(item => item.order_payment_method.toLowerCase() === activeFilter.toLowerCase());
-        }
-
-        // Apply sorting
+        // Step 3: Apply sorting
         filtered = sortTransactions(filtered);
 
         setFilteredTransactions(filtered);
+    };
+
+    const handleFilterChange = (filterId: string | number) => {
+        setActiveFilter(filterId as string);
+        // Filters will be applied via the useEffect
+    };
+
+    const handleDateRangeChange = (newStartDate: Date, newEndDate: Date) => {
+        setStartDate(newStartDate);
+        setEndDate(newEndDate);
+        setFormattedDateRange(formatDateRange(newStartDate, newEndDate));
+        setIsDateRangeActive(true);
+        
+        // Reset pagination and load new data with the date range
+        setPage(1);
+        setHasMore(true);
+        setAllTransactionsLoaded(false);
+        setTransactions([]);
+        setFilteredTransactions([]);
+        // Clear refs for trigger rows
+        loadTriggerRefs.current = {};
+        
+        // Fetch transactions with the new date range
+        fetchTransactionsBatch(1, newStartDate, newEndDate);
+    };
+
+    const handleSearchResults = (results: any[]) => {
+        // No need for custom handling as search is integrated in applyFilters
+        setSearchTerm(results.length > 0 ? searchTerm : "");
+    };
+
+    const handleSearchTermChange = (term: string) => {
+        setSearchTerm(term);
+        // Filters will be applied via the useEffect
     };
 
     const sortTransactions = (transactionsToSort: Transaction[]) => {
@@ -197,28 +298,6 @@ export default function TransactionPOS() {
     const handleSortOption = (field: string, direction: "asc" | "desc") => {
         setSortField(field);
         setSortDirection(direction);
-    };
-
-    const handleSearchResults = (results: any[]) => {
-        const filtered = results as Transaction[];
-        
-        // Apply active filter on search results
-        let finalResults = filtered;
-        if (activeFilter !== "all") {
-            finalResults = filtered.filter(item => item.order_payment_method.toLowerCase() === activeFilter.toLowerCase());
-        }
-        
-        // Apply sorting
-        const sortedResults = sortTransactions(finalResults);
-        setFilteredTransactions(sortedResults);
-    };
-
-    const handleSearchTermChange = (term: string) => {
-        setSearchTerm(term);
-    };
-
-    const handleFilterChange = (filterId: string | number) => {
-        setActiveFilter(filterId as string);
     };
 
     const filterOptions = [
@@ -266,6 +345,16 @@ export default function TransactionPOS() {
                                 currentField={sortField}
                                 currentDirection={sortDirection}
                                 onSort={handleSortOption}
+                            />
+                        </div>
+                        
+                        <div className="flex items-center justify-between w-4/9 pl-1.5 z-20">
+                            <DateRangePicker
+                                startDate={startDate}
+                                endDate={endDate}
+                                onChange={handleDateRangeChange}
+                                formatDisplay={formatDateRange}
+                                displayFormat="MMM dd, yyyy"
                             />
                         </div>
                     </div>
@@ -367,111 +456,138 @@ export default function TransactionPOS() {
                                             const rowSpan = transaction.products.length;
                                             const isLastItem = index === filteredTransactions.length - 1;
                                             
+                                            // Calculate if this is the 15th row (index 14) of any batch
+                                            const batchIndex = Math.floor(index / itemsPerPage);
+                                            const indexInBatch = index % itemsPerPage;
+                                            const isTriggerRow = indexInBatch === 14; // 15th item (0-indexed)
+                                            const triggerRowKey = `trigger-${batchIndex}`;
+                                            
                                             return (
-                                                <>
-                                                {transaction.products.map((product, productIndex) => (
-                                                    <tr key={`${transaction.order_id}-${product.product_id}-${productIndex}`} className="hover:bg-gray-700/60 transition-colors">
-                                                        {/* Order ID - Only for the first product in each order */}
-                                                        {productIndex === 0 && (
-                                                            <td rowSpan={rowSpan} className="px-2 text-center py-1 whitespace-nowrap text-sm text-gray-300 border-r border-gray-700">
-                                                                {transaction.order_id}
+                                                <React.Fragment key={transaction.order_id}>
+                                                {transaction.products.map((product, productIndex) => {
+                                                    // Only set the ref on the first product row of the transaction
+                                                    // and only if it's the 15th item of a batch
+                                                    const shouldAttachRef = productIndex === 0 && isTriggerRow;
+                                                    
+                                                    return (
+                                                        <tr 
+                                                            key={`${transaction.order_id}-${product.product_id}-${productIndex}`} 
+                                                            className="hover:bg-gray-700/60 transition-colors"
+                                                            ref={shouldAttachRef ? (el) => {
+                                                                loadTriggerRefs.current[triggerRowKey] = el;
+                                                            } : undefined}
+                                                        >
+                                                            {/* Order ID - Only for the first product in each order */}
+                                                            {productIndex === 0 && (
+                                                                <td rowSpan={rowSpan} className="px-2 text-center py-1 whitespace-nowrap text-sm text-gray-300 border-r border-gray-700">
+                                                                    {transaction.order_id}
+                                                                </td>
+                                                            )}
+                                                            
+                                                            {/* Product Image */}
+                                                            <td className="px-2 py-1 text-center whitespace-nowrap">
+                                                                <div className="flex items-center justify-center">
+                                                                    {product.product_image ? (
+                                                                        <img 
+                                                                            src={`/storage/products/${product.product_image}`}
+                                                                            alt={product.product_name}
+                                                                            className="w-10 h-10 object-cover rounded-md border border-gray-600"
+                                                                            onError={(e) => {
+                                                                                (e.target as HTMLImageElement).onerror = null;
+                                                                                (e.target as HTMLImageElement).src = '/placeholder.png';
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
+                                                                    )}
+                                                                </div>
                                                             </td>
-                                                        )}
-                                                        
-                                                        {/* Product Image */}
-                                                        <td className="px-2 py-1 text-center whitespace-nowrap">
-                                                            <div className="flex items-center justify-center">
-                                                                {product.product_image ? (
-                                                                    <img 
-                                                                        src={`/storage/products/${product.product_image}`}
-                                                                        alt={product.product_name}
-                                                                        className="w-10 h-10 object-cover rounded-md border border-gray-600"
-                                                                        onError={(e) => {
-                                                                            (e.target as HTMLImageElement).onerror = null;
-                                                                            (e.target as HTMLImageElement).src = '/placeholder.png';
-                                                                        }}
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-10 h-10 bg-gray-700 rounded-md flex items-center justify-center text-gray-400 border border-gray-600"></div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        
-                                                        {/* Product Name */}
-                                                        <td className="px-2 py-1 text-left whitespace-nowrap text-sm text-gray-300">
-                                                            {product.product_name}
-                                                        </td>
-                                                        
-                                                        {/* Product Price */}
-                                                        <td className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                            {formatCurrency(product.product_price)}
-                                                        </td>
-                                                        
-                                                        {/* Order Quantity */}
-                                                        <td className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                            {formatNumber(product.order_quantity)}
-                                                        </td>
-                                                        
-                                                        {/* Amount (Price × Quantity) */}
-                                                        <td className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300 border-r border-gray-700">
-                                                            {formatCurrency(product.amount)}
-                                                        </td>
-                                                        
-                                                        {/* Order details - Only for the first product in each order */}
-                                                        {productIndex === 0 && (
-                                                            <>
-                                                                {/* Subtotal */}
-                                                                <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                                    {formatCurrency(transaction.order_subtotal)}
-                                                                </td>
-                                                                
-                                                                {/* Tax */}
-                                                                <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                                    {formatCurrency(transaction.order_tax)}
-                                                                </td>
-                                                                
-                                                                {/* Discount */}
-                                                                <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                                    {formatCurrency(transaction.order_discount)}
-                                                                </td>
-                                                                
-                                                                {/* Total */}
-                                                                <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm font-medium text-white">
-                                                                    {formatCurrency(transaction.order_total)}
-                                                                </td>
-                                                                
-                                                                {/* Payment */}
-                                                                <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                                    {formatCurrency(transaction.order_payment)}
-                                                                </td>
-                                                                
-                                                                {/* Change */}
-                                                                <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                                    {formatCurrency(transaction.order_change)}
-                                                                </td>
-                                                                
-                                                                {/* Payment Method */}
-                                                                <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
-                                                                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                                        ${transaction.order_payment_method === 'cash' ? 'bg-blue-900 text-blue-200' : 
-                                                                        transaction.order_payment_method === 'gcash' ? 'bg-green-900 text-green-200' : 
-                                                                        transaction.order_payment_method === 'grabfood' ? 'bg-green-800 text-white' : 
-                                                                        transaction.order_payment_method === 'foodpanda' ? 'bg-pink-900 text-pink-200' : 
-                                                                        'bg-gray-900 text-gray-200'}`}
-                                                                    >
-                                                                        {transaction.order_payment_method.toUpperCase()}
-                                                                    </span>
-                                                                </td>
-                                                            </>
-                                                        )}
-                                                    </tr>
-                                                ))}
-                                                </>
+                                                            
+                                                            {/* Product Name */}
+                                                            <td className="px-2 py-1 text-left whitespace-nowrap text-sm text-gray-300">
+                                                                {product.product_name}
+                                                            </td>
+                                                            
+                                                            {/* Product Price */}
+                                                            <td className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                {formatCurrency(product.product_price)}
+                                                            </td>
+                                                            
+                                                            {/* Order Quantity */}
+                                                            <td className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                {formatNumber(product.order_quantity)}
+                                                            </td>
+                                                            
+                                                            {/* Amount (Price × Quantity) */}
+                                                            <td className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300 border-r border-gray-700">
+                                                                {formatCurrency(product.amount)}
+                                                            </td>
+                                                            
+                                                            {/* Order details - Only for the first product in each order */}
+                                                            {productIndex === 0 && (
+                                                                <>
+                                                                    {/* Subtotal */}
+                                                                    <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                        {formatCurrency(transaction.order_subtotal)}
+                                                                    </td>
+                                                                    
+                                                                    {/* Tax */}
+                                                                    <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                        {formatCurrency(transaction.order_tax)}
+                                                                    </td>
+                                                                    
+                                                                    {/* Discount */}
+                                                                    <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                        {formatCurrency(transaction.order_discount)}
+                                                                    </td>
+                                                                    
+                                                                    {/* Total */}
+                                                                    <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm font-medium text-white">
+                                                                        {formatCurrency(transaction.order_total)}
+                                                                    </td>
+                                                                    
+                                                                    {/* Payment */}
+                                                                    <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                        {formatCurrency(transaction.order_payment)}
+                                                                    </td>
+                                                                    
+                                                                    {/* Change */}
+                                                                    <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                        {formatCurrency(transaction.order_change)}
+                                                                    </td>
+                                                                    
+                                                                    {/* Payment Method */}
+                                                                    <td rowSpan={rowSpan} className="px-2 py-1 text-center whitespace-nowrap text-sm text-gray-300">
+                                                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                                            ${transaction.order_payment_method === 'cash' ? 'bg-yellow-600 text-yellow-200' : 
+                                                                            transaction.order_payment_method === 'gcash' ? 'bg-blue-600 text-blue-200' : 
+                                                                            transaction.order_payment_method === 'grabfood' ? 'bg-green-600 text-green-200' : 
+                                                                            transaction.order_payment_method === 'foodpanda' ? 'bg-pink-600 text-pink-200' : 
+                                                                            'bg-gray-900 text-gray-200'}`}
+                                                                        >
+                                                                            {transaction.order_payment_method.toUpperCase()}
+                                                                        </span>
+                                                                    </td>
+                                                                </>
+                                                            )}
+                                                        </tr>
+                                                    );
+                                                })}
+                                                </React.Fragment>
                                             );
                                         })
                                     )}
                                 </tbody>
                             </table>
+                            
+                            {/* Loading indicator at bottom */}
+                            {!isLoading && filteredTransactions.length > 0 && !allTransactionsLoaded && isLoadingMore && (
+                                <div className="py-4 text-center text-gray-400">
+                                    <div className="flex justify-center items-center">
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

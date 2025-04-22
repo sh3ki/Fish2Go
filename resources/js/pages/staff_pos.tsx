@@ -539,7 +539,9 @@ export default function POS() {
                 order_status: 'confirmed',
                 order_payment_method: paymentMethod.toLowerCase(),
                 is_grilled: item.is_grilled || false,
-                cook_id: item.cook_id || null
+                cook_id: item.cook_id || null,
+                // Add this to update productsold table
+                update_product_sold: !item.is_grilled
             }));
 
             // Send order to server
@@ -669,7 +671,7 @@ export default function POS() {
                         {/* Close button - moved outside the flex container */}
                         <button 
                             onClick={() => setShowCheckoutModal(false)}
-                            className="absolute top-1 right-1 text-white-500"
+                            className="absolute top-2 right-2 text-white"
                         >
                             <CircleX size={20} />
                         </button>
@@ -715,7 +717,7 @@ export default function POS() {
                                 <>
                                     <div className="flex justify-between items-center text-white">
                                         <span>Cash:</span>
-                                        <span>₱ {cash}</span>
+                                        <span>₱ {cash ? parseFloat(cash).toFixed(2) : '0.00'}</span>
                                     </div>
                                     <div className="border-t border-white my-1"></div>
                                     <div className="flex justify-between font-bold text-sm text-white" style={{ fontSize: "1.05rem" }}>
@@ -744,7 +746,7 @@ export default function POS() {
                 <div className="flex-1 space-y-4 p-2 bg-gray-800 flex flex-col">
                     <div className="flex items-center gap-1.5 mb-2 bg-transparent rounded-lg">
                         <SearchBar
-                            placeholder="Search Product"
+                            placeholder="Search Products"
                             items={availableProducts}
                             searchField="product_name"
                             onSearchResults={handleSearchResults}

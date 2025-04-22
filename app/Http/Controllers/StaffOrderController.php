@@ -7,6 +7,7 @@ use App\Models\Order;
 use Illuminate\Support\Facades\Log;
 use App\Models\Product;
 use App\Models\Cook;
+use App\Models\ProductSold; // Add this import
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +37,7 @@ class StaffOrderController extends Controller
             '*.order_payment_method' => 'required|string|in:cash,gcash,grabf,foodp',
             '*.is_grilled' => 'sometimes|boolean',
             '*.cook_id' => 'sometimes|integer|nullable',
+            '*.update_product_sold' => 'sometimes|boolean', 
         ]);
 
         try {
@@ -46,7 +48,7 @@ class StaffOrderController extends Controller
             $lastOrder = Order::max('order_id');
             $nextOrderId = $lastOrder ? $lastOrder + 1 : 1;
             
-            // Get today's date for cook data
+            // Get today's date
             $today = Carbon::now()->toDateString();
             
             // Process each order item
@@ -69,13 +71,27 @@ class StaffOrderController extends Controller
                         ], 422);
                     }
                 } else {
-                    // Check product availability for non-grilled products
-                    $product = Product::findOrFail($orderItem['product_id']);
-                    if ($product->product_qty < $orderItem['order_quantity']) {
+                    // For non-grilled products, check ProductSold table for available stock
+                    $productSold = ProductSold::where('product_id', $orderItem['product_id'])
+                        ->where('date', $today)
+                        ->first();
+                    
+                    if (!$productSold) {
+                        // This should not happen as records should be initialized, but handle just in case
                         DB::rollBack();
                         return response()->json([
-                            'message' => "Not enough stock for product: {$product->product_name}",
-                            'available' => $product->product_qty,
+                            'message' => "Product inventory record not found for today: {$orderItem['product_id']}",
+                        ], 422);
+                    }
+                    
+                    // Calculate available stock (product_qty - product_sold)
+                    $availableStock = $productSold->product_qty - $productSold->product_sold;
+                    
+                    if ($availableStock < $orderItem['order_quantity']) {
+                        DB::rollBack();
+                        return response()->json([
+                            'message' => "Not enough stock for product ID: {$orderItem['product_id']}",
+                            'available' => $availableStock,
                             'requested' => $orderItem['order_quantity']
                         ], 422);
                     }
@@ -115,11 +131,45 @@ class StaffOrderController extends Controller
                         $cook->cook_available = max(0, $cook->cook_available - $orderItem['order_quantity']);
                         $cook->cook_leftover = max(0, $cook->cook_leftover - $orderItem['order_quantity']);
                         $cook->save();
+                        
+                        // ADDED: Also update ProductSold to track all sales including grilled items
+                        $productSold = ProductSold::where('product_id', $orderItem['product_id'])
+                            ->where('date', $today)
+                            ->first();
+                        
+                        if ($productSold) {
+                            // Increment the product_sold count for reporting purposes
+                            $productSold->product_sold += $orderItem['order_quantity'];
+                            $productSold->save();
+                        }
                     }
                 } else {
-                    // Update regular product inventory
-                    $product = Product::findOrFail($orderItem['product_id']);
-                    $product->decrement('product_qty', $orderItem['order_quantity']);
+                    // Update ProductSold table instead of Product table
+                    $productSold = ProductSold::where('product_id', $orderItem['product_id'])
+                        ->where('date', $today)
+                        ->first();
+                    
+                    if ($productSold) {
+                        // Increment the product_sold count
+                        $productSold->product_sold += $orderItem['order_quantity'];
+                        $productSold->save();
+                        
+                        Log::info("Updated product_sold record: Product ID {$productSold->product_id}, Sold: {$productSold->product_sold}");
+                    } else {
+                        // This should not happen, but handle it by finding the product and creating a new record
+                        $product = Product::find($orderItem['product_id']);
+                        
+                        if ($product) {
+                            $newProductSold = ProductSold::create([
+                                'product_id' => $orderItem['product_id'],
+                                'date' => $today,
+                                'product_qty' => $orderItem['order_quantity'], // Set initial quantity to what's being sold
+                                'product_sold' => $orderItem['order_quantity'] // Start with all being sold
+                            ]);
+                            
+                            Log::info("Created new product_sold record: Product ID {$newProductSold->product_id}, Qty: {$newProductSold->product_qty}, Sold: {$newProductSold->product_sold}");
+                        }
+                    }
                 }
             }
             

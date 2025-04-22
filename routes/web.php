@@ -118,6 +118,7 @@ Route::middleware(['staff'])->group(function () {
     //Expenses
     Route::get('/staff/expenses', [StaffExpensesController::class, 'index'])->name('staff.expenses'); // Ensure this route exists
     Route::post('/staff/expenses', [StaffExpensesController::class, 'store'])->name('staff.expenses.store');
+    Route::get('/staff/expenses/data', [StaffExpensesController::class, 'getExpenses'])->name('staff.expenses.data');
     
     //Cook
     Route::get('/staff/cook', [StaffCookController::class, 'index'])->name('staff.cook');
@@ -127,10 +128,13 @@ Route::middleware(['staff'])->group(function () {
     //Transactions
     Route::get('/staff/transactions', [StaffTransactionController::class, 'index'])->name('staff.transactions');
     Route::get('/staff/transactions/data', [StaffTransactionController::class, 'getTransactions'])->name('staff.transactions.data');
+   
 
     //Delievery
     Route::get('/staff/delivery', [StaffDeliveryController::class, 'index'])->name('staff.delivery');
-
+    Route::get('/staff/delivery/data', [StaffDeliveryController::class, 'getData'])->name('staff.delivery.data');
+    Route::post('/staff/delivery/update', [StaffDeliveryController::class, 'updateDelivery'])->name('staff.delivery.update');
+    
     //Messages
     Route::get('/staff/messages', [StaffMessagesController::class, 'index'])->name('staff.messages');
 
@@ -144,10 +148,6 @@ Route::middleware(['staff'])->group(function () {
      //Summary
      Route::get('/staff/summary', [StaffSummaryController::class, 'index'])->name('staff.summary');
 });
-
-// Route::post('/userlog/login', [UserlogController::class, 'logIn']);
-// Route::post('/userlog/logout', [UserlogController::class, 'logOut']);
-// Route::get('/userlogs', [UserlogController::class, 'index']);
 
 
 

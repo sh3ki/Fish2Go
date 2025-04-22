@@ -7,14 +7,26 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Cook;
+use App\Models\ProductSold;
 use Carbon\Carbon;
 
 class StaffCookController extends Controller
 {
     public function index()
     {
-        // Fetch products with eager loading of categories
-        $products = Product::with('category')->get()->map(function ($product) {
+        // Get today's date
+        $today = Carbon::now()->toDateString();
+        
+        // Fetch products with eager loading of categories and product_sold
+        $products = Product::with([
+            'category',
+            'productSold' => function($query) use ($today) {
+                $query->where('date', $today);
+            }
+        ])->get()->map(function ($product) {
+            // Get product_sold data
+            $productSoldData = $product->productSold->first();
+            
             return [
                 'product_id' => $product->product_id,
                 'product_name' => $product->product_name,
@@ -22,7 +34,8 @@ class StaffCookController extends Controller
                 'category_name' => $product->category->category_name ?? 'Unknown',
                 'category_color' => $product->category->category_color ?? '#000000',
                 'product_price' => $product->product_price,
-                'product_qty' => $product->product_qty,
+                // Use product_qty from product_sold if available, otherwise 0
+                'product_qty' => $productSoldData ? $productSoldData->product_qty - $productSoldData->product_sold : 0,
                 'product_image' => $product->product_image ? 'products/' . $product->product_image : null,
                 'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
             ];
@@ -43,8 +56,16 @@ class StaffCookController extends Controller
         $search = $request->query('search');
         $category = $request->query('category');
         
+        // Get today's date
+        $today = Carbon::now()->toDateString();
+        
         // Start query building with eager loading of category
-        $query = Product::with('category');
+        $query = Product::with([
+            'category',
+            'productSold' => function($query) use ($today) {
+                $query->where('date', $today);
+            }
+        ]);
         
         // Apply search filter if provided
         if ($search) {
@@ -58,6 +79,9 @@ class StaffCookController extends Controller
         
         // Execute query
         $products = $query->get()->map(function ($product) {
+            // Get product_sold data
+            $productSoldData = $product->productSold->first();
+            
             return [
                 'product_id' => $product->product_id,
                 'product_name' => $product->product_name,
@@ -65,7 +89,8 @@ class StaffCookController extends Controller
                 'category_name' => $product->category->category_name ?? 'Unknown',
                 'category_color' => $product->category->category_color ?? '#000000',
                 'product_price' => $product->product_price,
-                'product_qty' => $product->product_qty,
+                // Use product_qty from product_sold if available, otherwise 0
+                'product_qty' => $productSoldData ? $productSoldData->product_qty - $productSoldData->product_sold : 0,
                 'product_image' => $product->product_image ? 'products/' . $product->product_image : null,
                 'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
             ];
@@ -114,12 +139,6 @@ class StaffCookController extends Controller
                     $savedItems[] = $cook;
                 }
                 
-                // Update product quantity in the products table
-                $product = Product::find($item['product_id']);
-                if ($product) {
-                    $product->product_qty = max(0, $product->product_qty - $item['qty']);
-                    $product->save();
-                }
             }
             
             // Commit the transaction

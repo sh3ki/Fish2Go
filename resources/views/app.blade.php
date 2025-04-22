@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <link rel="icon" href="{{ asset('images/f2g_logo_white.png') }}" type="image/x-icon">
+        <link rel="icon" href="{{ url('/images/f2g_logo_white.png') }}" type="image/x-icon">
         
         {{-- Inline script to detect system dark mode preference --}}
         <script>
@@ -40,7 +40,7 @@
         {{-- Simple version that works in all scenarios --}}
         @php
             $isNgrokRequest = strpos(request()->getHost(), 'ngrok-free.app') !== false;
-            $viteUrl = $isNgrokRequest ? env('NGROK_VITE_URL') : 'http://192.168.169.204:5173';
+            $viteUrl = $isNgrokRequest ? env('NGROK_VITE_URL') : 'http://192.168.1.3:5173';
         @endphp
 
         @if($isNgrokRequest)

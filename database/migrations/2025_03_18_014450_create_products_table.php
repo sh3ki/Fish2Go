@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('product_name');
             $table->string('product_image')->nullable();
             $table->decimal('product_price', 10, 2);
-            $table->integer('product_qty');
             $table->unsignedBigInteger('category_id');
             $table->enum('product_notification', ['unread', 'read'])->default('unread');
             $table->timestamps();

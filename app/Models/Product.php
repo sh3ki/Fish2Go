@@ -35,4 +35,9 @@ class Product extends Model
     {
         return $this->hasMany(Cook::class, 'product_id', 'product_id');
     }
+
+    public function productSold()
+    {
+        return $this->hasMany(ProductSold::class, 'product_id', 'product_id');
+    }
 }

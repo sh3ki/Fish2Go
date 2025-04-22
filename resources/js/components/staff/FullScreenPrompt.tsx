@@ -16,8 +16,6 @@ export default function FullScreenPrompt({ onFullScreenChange }: FullScreenPromp
                 setShowPrompt(false);
                 localStorage.setItem('staffFullScreenMode', 'true');
                 if (onFullScreenChange) onFullScreenChange(true);
-            }).catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
             });
         }
     };

@@ -14,13 +14,14 @@ return new class extends Migration
         Schema::create('summaries', function (Blueprint $table) {
             $table->id();
             $table->date('date');
-            $table->decimal('total_sales', 10, 2)->default(0);
-            $table->decimal('total_income', 10, 2)->default(0);
-            $table->decimal('total_expense', 10, 2)->default(0);
+            $table->decimal('total_gross_sales', 10, 2)->default(0);
+            $table->decimal('total_expenses', 10, 2)->default(0);
+            $table->decimal('total_net_sales', 10, 2)->default(0);
             $table->decimal('total_cash', 10, 2)->default(0);
             $table->decimal('total_gcash', 10, 2)->default(0);
             $table->decimal('total_grabfood', 10, 2)->default(0);
             $table->decimal('total_foodpanda', 10, 2)->default(0);
+            $table->decimal('total_register_cash', 10, 2)->default(0);
             $table->decimal('total_deposited', 10, 2)->default(0);
             $table->timestamps();
         });
