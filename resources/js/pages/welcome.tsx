@@ -19,7 +19,7 @@ export default function Welcome() {
                             color: "white", // Keeps the text filled with white
                         }}
                     >
-                        Fish2Go
+                        Fredo's Grilling
                     </h1>
                     <h2
                         className="text-3xl font-semibold mb-4"
