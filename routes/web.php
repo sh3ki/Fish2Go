@@ -139,7 +139,8 @@ Route::middleware(['staff'])->group(function () {
     Route::get('/staff/messages', [StaffMessagesController::class, 'index'])->name('staff.messages');
 
     //Products
-    Route::get('/staff/products', [StaffProductController::class, 'getProducts'])->name('staff.products');
+    Route::get('/staff/products', [StaffProductController::class, 'index'])->name('staff.products');
+    Route::get('/api/staff/products', [StaffProductController::class, 'getProducts'])->name('api.staff.products');
     
     //Inventory
     Route::get('/staff/inventory', [StaffInventoryController::class, 'getInventory'])->name('staff.inventory');
@@ -148,7 +149,6 @@ Route::middleware(['staff'])->group(function () {
      //Summary
      Route::get('/staff/summary', [StaffSummaryController::class, 'index'])->name('staff.summary');
 });
-
 
 
 require __DIR__.'/settings.php';
