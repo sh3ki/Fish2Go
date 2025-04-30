@@ -1,6 +1,6 @@
 import AppLogoIcon from '@/components/app-logo-icon';
-import ConfirmLogout from '@/components/ConfirmLogout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import ConfirmLogout from '@/components/confirm-logout';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useInitials } from '@/hooks/use-initials';
@@ -10,6 +10,8 @@ import { router, useForm, usePage } from '@inertiajs/react';
 import { collection, getDocs, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { CookingPot, HardDrive, ClipboardList, Wallet, ReceiptText, ChefHat, CreditCard, LogOut, MessageCircleMore, Truck } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
+import axios from 'axios';
+import { BreadcrumbItem } from '@/types';
 
 interface StaffLayoutProps {
     breadcrumbs?: BreadcrumbItem[];
@@ -18,14 +20,20 @@ interface StaffLayoutProps {
 
 export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps) {
     const { post } = useForm();
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const page = usePage();
     const { auth } = page.props as unknown as { auth: { user: { avatar: string; name: string } } };
     const currentUrl = page.url; // new: used to highlight active page
     const getInitials = useInitials();
 
-    const handleLogout = () => {
-        post(route('logout'));
+    const handleLogout = async () => {
+        try {
+            await axios.post('/logout');
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Logout failed', error);
+        }
     };
 
     // 🔥 Message Count for Unseen Messages by Staff
@@ -115,7 +123,7 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                         : 'Point of Sales'}
                 </h1>
 
-                <DropdownMenu>
+                <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="size-8 rounded-full p-1">
                             <Avatar className="size-6 overflow-hidden rounded-full">
@@ -201,7 +209,10 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
 
                         <button
                             className="flex w-full items-center gap-2 p-2 text-left text-red-400 hover:bg-gray-700"
-                            onClick={() => setIsLogoutModalOpen(true)}
+                            onClick={() => {
+                                setIsLogoutModalOpen(true);
+                                setIsDropdownOpen(false);
+                            }}
                         >
                             <LogOut size={18} /> Logout
                         </button>

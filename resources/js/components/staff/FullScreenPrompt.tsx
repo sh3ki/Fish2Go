@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 
 interface FullScreenPromptProps {
     onFullScreenChange?: (isFullScreen: boolean) => void;
+    shouldPrompt?: boolean;
 }
 
-export default function FullScreenPrompt({ onFullScreenChange }: FullScreenPromptProps) {
+export default function FullScreenPrompt({ onFullScreenChange, shouldPrompt = false }: FullScreenPromptProps) {
     const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
     const [showPrompt, setShowPrompt] = useState<boolean>(true);
 
@@ -21,6 +22,16 @@ export default function FullScreenPrompt({ onFullScreenChange }: FullScreenPromp
     };
 
     useEffect(() => {
+        // Check if already in fullscreen when component mounts
+        const isInFullScreen = !!document.fullscreenElement;
+        if (isInFullScreen) {
+            setIsFullScreen(true);
+            setShowPrompt(false);
+            localStorage.setItem('staffFullScreenMode', 'true');
+            if (onFullScreenChange) onFullScreenChange(true);
+            return;
+        }
+
         const wasInFullScreen = localStorage.getItem('staffFullScreenMode') === 'true';
         if (wasInFullScreen) {
             setShowPrompt(false);
@@ -54,6 +65,31 @@ export default function FullScreenPrompt({ onFullScreenChange }: FullScreenPromp
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
     }, [onFullScreenChange]);
+
+    useEffect(() => {
+        if (shouldPrompt && !isFullScreen) {
+            // First check if we're already in fullscreen mode
+            if (document.fullscreenElement) {
+                setIsFullScreen(true);
+                setShowPrompt(false);
+                localStorage.setItem('staffFullScreenMode', 'true');
+                if (onFullScreenChange) onFullScreenChange(true);
+                return;
+            }
+            
+            // If not in fullscreen, then try to enter fullscreen
+            document.documentElement.requestFullscreen().then(() => {
+                setIsFullScreen(true);
+                setShowPrompt(false);
+                localStorage.setItem('staffFullScreenMode', 'true');
+                if (onFullScreenChange) onFullScreenChange(true);
+            }).catch(err => {
+                // If there's an error with auto-fullscreen, show the prompt
+                console.log('Error auto-entering fullscreen:', err);
+                setShowPrompt(true);
+            });
+        }
+    }, [shouldPrompt, isFullScreen, onFullScreenChange]);
 
     if (!showPrompt) return null;
 

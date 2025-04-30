@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Models\LoginLog;
+
 
 class AuthenticatedSessionController extends Controller
 {
@@ -33,16 +35,26 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
     
         $user = Auth::user(); // Get the authenticated user
+        
+        // Store login time in LoginLog
+        LoginLog::create([
+            'user_id' => $user->id,
+            'logged_in_at' => now(),
+        ]);
     
+        \Log::info('User logged in with type: ' . $user->usertype);
+
         if ($user->usertype === 'admin') {
-            return redirect()->intended(route('admin.dashboard')); 
+            \Log::info('Redirecting admin to: ' . route('admin.dashboard'));
+            return redirect()->intended(route('admin.dashboard'));
         } elseif ($user->usertype === 'staff') {
-            return redirect()->intended(route('staff.pos')); 
+            \Log::info('Redirecting staff to: ' . route('staff.pos'));
+            return redirect()->intended(route('staff.pos'));
         }
     
+        \Log::info('Redirecting other user to home');
         return redirect()->intended(route('home')); 
     }
-    
 
     /**
      * Destroy an authenticated session.

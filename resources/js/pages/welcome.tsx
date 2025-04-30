@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, Link, usePage, router } from "@inertiajs/react";
 
 export default function Welcome() {
     const { auth } = usePage().props;
@@ -48,37 +48,25 @@ export default function Welcome() {
                 </nav>
 
                 {/* Main Content Box */}
-                <div className="flex max-w-2xl bg-transparent backdrop-blur-[7px] text-white rounded-lg shadow-2xl p-8 z-10 border border-gray-300 relative ">
+                <div className="flex max-w-2xl p-15 px-30 bg-transparent backdrop-blur-[12px] text-white rounded-lg shadow-2xl p-8 z-10 border border-gray-300 relative ">
                     <div className="flex-1">
                     <h2
-                        className="text-3xl font-semibold mb-4"
+                        className="text-3xl font-semibold mb-4 text-center"
                         style={{
                             WebkitTextStroke: "1px black", // Solid black border for each letter
                             color: "white", // Keeps the text filled with white
                         }}
                     >
-                       Welcome!
+                       WELCOME!
                     </h2>
 
                         {/* Email Field Styled as Log in Button */}
-                        <div className="mb-4">
+                        <div className="my-4 mt-20">
                             <input 
-                                type="Log In" 
-                                placeholder="Log In" 
-                                onClick={() => window.location.href = route("login")} 
-                                className="w-full px-4 py-2 text-black bg-gray-300 rounded-md cursor-pointer hover:bg-gray-400 focus:outline-none"
-                                readOnly
-                            />
-                        </div>
-
-                        {/* Password Field Styled as Register Button */}
-                        <div className="mb-4">
-                            <input 
-                                type="Register" 
-                                placeholder="Register" 
-                                onClick={() => window.location.href = route("register")} 
-                                className="w-full px-4 py-2 text-black bg-gray-300 rounded-md cursor-pointer hover:bg-gray-400 focus:outline-none"
-                                readOnly
+                                type="button" 
+                                value="LOGIN" 
+                                onClick={() => router.visit(route('login'))}
+                                className="w-full px-4 py-2 text-center font-bold text-black bg-gray-300 rounded-md cursor-pointer hover:bg-gray-400 focus:outline-none text-lg"
                             />
                         </div>
                     </div>

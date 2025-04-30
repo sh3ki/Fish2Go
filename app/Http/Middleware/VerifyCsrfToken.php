@@ -12,6 +12,6 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        'webhook/inventory-update', // Add this line to exclude our webhook
+        // Don't add 'login' here as it should be protected
     ];
 }

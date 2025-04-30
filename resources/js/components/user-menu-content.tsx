@@ -5,7 +5,8 @@ import { type User } from '@/types';
 import { Link, router } from '@inertiajs/react';
 import { LogOut, Settings } from 'lucide-react';
 import { useState } from 'react';
-import ConfirmLogout from '@/components/ConfirmLogout'; // Ensure correct case-sensitive path
+import ConfirmLogout from '@/components/confirm-logout'; // Ensure correct case-sensitive path
+import axios from 'axios';
 
 interface UserMenuContentProps {
     user: User;
@@ -15,8 +16,13 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
     const cleanup = useMobileNavigation();
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-    const handleLogout = () => {
-        router.post(route('logout')); // Inertia.js recommended way to logout
+    const handleLogout = async () => {
+        try {
+            await axios.post('/logout');
+            window.location.href = '/'; 
+        } catch (error) {
+            console.error('Logout failed', error);
+        }
     };
 
     return (

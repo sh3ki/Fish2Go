@@ -31,8 +31,113 @@ export default function POS() {
     const categoryButtonRef = useRef(null);
     const categoryModalRef = useRef(null);
     const [showCheckoutModal, setShowCheckoutModal] = useState(false); // Add new state for checkout modal
+    const [shouldPromptFullscreen, setShouldPromptFullscreen] = useState(false); // Add new state for fullscreen prompt
 
     const cashInputRef = useRef(null);
+    
+    // Check if the page was just reloaded and prompt for fullscreen
+    useEffect(() => {
+        // IMPORTANT: Add fullscreen change handler at the top level of useEffect
+        const handleFullscreenChange = () => {
+            const isInFullscreen = !!document.fullscreenElement;
+            setIsFullScreen(isInFullscreen);
+            
+            // If exiting fullscreen, show the prompt
+            if (!isInFullscreen) {
+                setShouldPromptFullscreen(true);
+            }
+        };
+        
+        // Add event listener for fullscreen changes
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        
+        const checkReload = () => {
+            // First, check if we're already in fullscreen mode
+            const isAlreadyInFullscreen = !!document.fullscreenElement;
+            
+            if (isAlreadyInFullscreen) {
+                // If already in fullscreen, just update our state and don't prompt
+                setIsFullScreen(true);
+                localStorage.setItem('staffFullScreenMode', 'true');
+                return; // Exit early - no need to prompt
+            }
+            
+            // Check if this is a post-login redirect
+            const isPostLogin = sessionStorage.getItem('loginRedirect') === 'true';
+            if (isPostLogin) {
+                // Clear the login redirect flag
+                sessionStorage.removeItem('loginRedirect');
+                
+                // Wait a moment for the page to stabilize after login
+                setTimeout(() => {
+                    setShouldPromptFullscreen(true);
+                    
+                    // Attempt to trigger fullscreen
+                    const element = document.documentElement;
+                    if (element.requestFullscreen) {
+                        element.requestFullscreen().catch(err => {
+                            console.log('Error attempting to enable fullscreen:', err);
+                        });
+                    }
+                }, 1000);
+                
+                return; // Exit early since we've handled the login case
+            }
+            
+            // Original reload check logic
+            const lastPageUrl = sessionStorage.getItem('lastPageUrl');
+            const currentUrl = window.location.href;
+            
+            // Store current URL for next reload check
+            sessionStorage.setItem('lastPageUrl', currentUrl);
+            
+            // Check if page was reloaded (same URL)
+            const wasReloaded = lastPageUrl === currentUrl;
+            
+            // Check if fullscreen was explicitly requested after checkout
+            const fullscreenRequested = sessionStorage.getItem('promptFullscreen') === 'true';
+            if (fullscreenRequested) {
+                sessionStorage.removeItem('promptFullscreen'); // Clear the flag
+            }
+            
+            // Prompt for fullscreen if the page was reloaded or fullscreen was requested
+            // But ONLY if we're not already in fullscreen mode
+            if ((wasReloaded || fullscreenRequested) && !isAlreadyInFullscreen) {
+                // Wait a moment for the page to stabilize
+                setTimeout(() => {
+                    setShouldPromptFullscreen(true);
+                    
+                    // Attempt to trigger fullscreen
+                    const element = document.documentElement;
+                    if (element.requestFullscreen) {
+                        element.requestFullscreen().catch(err => {
+                            console.log('Error attempting to enable fullscreen:', err);
+                        });
+                    }
+                }, 1000);
+            }
+        };
+        
+        // Run the check
+        checkReload();
+        
+        // IMPORTANT: Return cleanup function at the useEffect level
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, []);
+
+    // Add a handler to trigger fullscreen from the FullScreenPrompt component
+    const handleFullScreenChange = (isActive: boolean) => {
+        setIsFullScreen(isActive);
+        
+        // If we're exiting fullscreen mode, show the prompt again
+        if (!isActive) {
+            setShouldPromptFullscreen(true);
+        } else {
+            setShouldPromptFullscreen(false);
+        }
+    };
 
     // Define the category order function - updated to group by category and sort by ID
     const sortProductsByCategory = (products) => {
@@ -130,11 +235,6 @@ export default function POS() {
             setFilteredProducts(sortProductsByCategory(filtered));
         }
     }, [searchTerm, availableProducts, activeCategory]);
-
-    // Handle fullscreen state changes from the FullScreenPrompt component
-    const handleFullScreenChange = (isActive: boolean) => {
-        setIsFullScreen(isActive);
-    };
 
     // Close category dropdown when clicking outside
     useEffect(() => {
@@ -592,6 +692,9 @@ export default function POS() {
                     alert("Please enable popups for receipt printing or use the Print Receipt button instead.");
                 }
                 
+                // Set flag in sessionStorage to indicate we should prompt for fullscreen after reload
+                sessionStorage.setItem('promptFullscreen', 'true');
+                
                 router.reload(); // Refresh product data
             }, 1500);
 
@@ -645,7 +748,7 @@ export default function POS() {
             <Head title="Point of Sales" />
 
             {/* Use the FullScreenPrompt component */}
-            <FullScreenPrompt onFullScreenChange={handleFullScreenChange} />
+            <FullScreenPrompt onFullScreenChange={handleFullScreenChange} shouldPrompt={shouldPromptFullscreen || !isFullScreen} />
 
             {errorMessage && (
                 <div className={`fixed top-4 right-4 z-50 p-3 rounded-md shadow-lg flex items-center animate-in fade-in slide-in-from-top-5 duration-300 ${errorMessage.includes("success") || errorMessage.includes("completed") || errorMessage.includes("Processing") ? "bg-green-500" : "bg-red-500"} text-white`}>

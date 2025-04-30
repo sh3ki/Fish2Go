@@ -150,6 +150,5 @@ Route::middleware(['staff'])->group(function () {
      Route::get('/staff/summary', [StaffSummaryController::class, 'index'])->name('staff.summary');
 });
 
-
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

@@ -1,7 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
-
+import { router } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -30,8 +30,16 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        
+        // Set a flag in sessionStorage to indicate we're coming from login
+        // This will be used to trigger fullscreen mode after login
+        sessionStorage.setItem('loginRedirect', 'true');
+        
         post(route('login'), {
-            onFinish: () => reset('password'),
+            onFinish: () => { reset('password'), window.location.reload(); },
+            preserveScroll: true,
+            preserveState: true,
+            forceFormData: true, // Force form data to include the CSRF token
         });
     };
 
@@ -40,6 +48,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
             <Head title="Log in" />
 
             <form className="flex flex-col gap-6" onSubmit={submit}>
+                {/* Add hidden input with CSRF token */}
+                <input type="hidden" name="_token" value={document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''} />
+                
                 <div className="grid gap-6">
                     <div className="grid gap-2">
                         <Label htmlFor="email">Email address</Label>

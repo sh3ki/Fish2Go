@@ -21,10 +21,10 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
-        host: '0.0.0.0', // Changed from 0.0.0.0 to specific IP
+        host: '0.0.0.0', 
         port: 5173,
         strictPort: true,
-        https: false, // Never use HTTPS locally
+        https: false,
         hmr: {
             host: '192.168.1.3',
             protocol: 'ws',
@@ -46,6 +46,8 @@ export default defineConfig({
     resolve: {
         alias: {
             'ziggy-js': resolve(__dirname, 'vendor/tightenco/ziggy'),
+            '@': '/resources/js',
+            'pages': '/resources/js/pages'
         },
     },
 });
