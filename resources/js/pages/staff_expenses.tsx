@@ -307,7 +307,7 @@ export default function StaffExpenses({ today, current_user_id, flash }: PagePro
             title: "",
             description: "",
             amount: "",
-            date: new Date()
+            date: new Date() // Always set to current date
         });
         setIsModalOpen(true);
     };
@@ -339,7 +339,7 @@ export default function StaffExpenses({ today, current_user_id, flash }: PagePro
                 title: formData.title,
                 description: formData.description,
                 amount: formattedAmount,
-                date: formData.date.toISOString().split('T')[0]
+                date: formData.date.toISOString().split('T')[0] // This still sends 'date' to match controller validation
             }, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -640,10 +640,11 @@ export default function StaffExpenses({ today, current_user_id, flash }: PagePro
                                     name="description"
                                     value={formData.description}
                                     onChange={handleInputChange}
-                                    rows={3}
+                                    rows={5}
                                     className="mt-1 block w-full rounded-md border border-gray-600 
                                             bg-gray-700 text-white px-3 py-2 shadow-sm 
-                                            focus:outline-none focus:ring focus:ring-blue-500"
+                                            focus:outline-none focus:ring focus:ring-blue-500
+                                            resize-none overflow-y-auto"
                                 />
                             </div>
 
@@ -662,19 +663,7 @@ export default function StaffExpenses({ today, current_user_id, flash }: PagePro
                                 />
                             </div>
                             
-                            <div>
-                                <Label htmlFor="expense_date" className="text-gray-200">Date</Label>
-                                <div className="mt-1 relative">
-                                    <DatePicker
-                                        selected={formData.date}
-                                        onChange={handleDatePickerChange}
-                                        dateFormat="yyyy-MM-dd"
-                                        className="w-full rounded-md border border-gray-600 
-                                                bg-gray-700 text-white px-3 py-2 shadow-sm 
-                                                focus:outline-none focus:ring focus:ring-blue-500"
-                                    />
-                                </div>
-                            </div>
+                            {/* Date picker removed - automatically using today's date */}
 
                             <div className="flex gap-2 justify-end pt-4 border-t border-gray-700">
                                 <Button 

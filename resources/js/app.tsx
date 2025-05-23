@@ -21,15 +21,44 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 createInertiaApp({
     title: (title) => `${appName} | ${title}`,
     resolve: (name) => {
-        const pages = import.meta.glob('./Pages/**/*.tsx', { eager: true });
-        const page = pages[`./Pages/${name}.tsx`];
+        // Support for nested page paths (like 'auth/login')
+        const pagesLowercase = import.meta.glob('./pages/**/*.tsx', { eager: true });
+        const pagesUppercase = import.meta.glob('./Pages/**/*.tsx', { eager: true });
+        
+        // Try to find the page in lowercase directory first
+        let page = pagesLowercase[`./pages/${name}.tsx`];
+        
+        // If not found, check if it might be in nested structure in lowercase directory
+        if (!page) {
+            Object.keys(pagesLowercase).forEach(path => {
+                const normalizedPath = path.replace(/^\.\/pages\//, '').replace(/\.tsx$/, '');
+                if (normalizedPath.toLowerCase() === name.toLowerCase()) {
+                    page = pagesLowercase[path];
+                }
+            });
+        }
+        
+        // If still not found, try uppercase directory
+        if (!page) {
+            page = pagesUppercase[`./Pages/${name}.tsx`];
+        }
+        
+        // If still not found, check if it might be in nested structure in uppercase directory
+        if (!page) {
+            Object.keys(pagesUppercase).forEach(path => {
+                const normalizedPath = path.replace(/^\.\/Pages\//, '').replace(/\.tsx$/, '');
+                if (normalizedPath.toLowerCase() === name.toLowerCase()) {
+                    page = pagesUppercase[path];
+                }
+            });
+        }
+        
+        // If page doesn't exist in any directory, throw an error
+        if (!page) {
+            throw new Error(`Page ${name} not found in pages or Pages directory`);
+        }
 
-        return {
-            ...(page as Record<string, any>),
-            default: (props: any) => (
-                <page.default {...props} />
-            )
-        };
+        return page;
     },
     setup({ el, App, props }) {
         const root = createRoot(el);

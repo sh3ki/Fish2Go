@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Product;
 use App\Models\Cook;
 use App\Models\ProductSold; // Add this import
+use App\Models\Summary; // Add this import
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -50,6 +51,12 @@ class StaffOrderController extends Controller
             
             // Get today's date
             $today = Carbon::now()->toDateString();
+            
+            // Get the first order item to extract payment method and total
+            // We'll use these for the summary update
+            $firstOrderItem = $request->all()[0] ?? null;
+            $orderTotal = $firstOrderItem ? $firstOrderItem['order_total'] : 0;
+            $paymentMethod = $firstOrderItem ? $firstOrderItem['order_payment_method'] : 'cash';
             
             // Process each order item
             foreach ($request->all() as $orderItem) {
@@ -176,6 +183,9 @@ class StaffOrderController extends Controller
             // Commit transaction
             DB::commit();
             
+            // After successful order creation, update the summary
+            $this->updateDailySummary($orderTotal, $paymentMethod);
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Order created successfully',
@@ -191,6 +201,72 @@ class StaffOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to create order: ' . $e->getMessage()
             ], 500);
+        }
+    }
+    
+    /**
+     * Update or create daily summary record
+     * 
+     * @param float $orderTotal The total amount of the order
+     * @param string $paymentMethod The payment method used
+     */
+    private function updateDailySummary($orderTotal, $paymentMethod)
+    {
+        try {
+            $today = Carbon::today()->toDateString();
+            
+            // Find or create a summary record for today
+            $summary = Summary::where('date', $today)->first();
+            
+            // If no summary exists, create a new one
+            if (!$summary) {
+                $summary = new Summary();
+                $summary->date = $today;
+                $summary->total_gross_sales = 0;
+                $summary->total_net_sales = 0;
+                $summary->total_walk_in = 0;
+                $summary->total_gcash = 0;
+                $summary->total_grabfood = 0;
+                $summary->total_foodpanda = 0;
+                $summary->total_expenses = 0;
+                $summary->total_register_cash = 0;
+                $summary->total_deposited = 0;
+            }
+            
+            // Add the order total to the appropriate fields
+            $summary->total_gross_sales += $orderTotal;
+            $summary->total_net_sales += $orderTotal; // Assuming net sales is the same as gross
+            $summary->total_register_cash += $orderTotal;
+            
+            // Normalize payment method from 'grabf' and 'foodp' to full names
+            if ($paymentMethod === 'grabf') {
+                $paymentMethod = 'grabfood';
+            } elseif ($paymentMethod === 'foodp') {
+                $paymentMethod = 'foodpanda';
+            }
+            
+            // Update the specific payment method field
+            switch (strtolower($paymentMethod)) {
+                case 'cash':
+                    $summary->total_walk_in += $orderTotal;
+                    break;
+                case 'gcash':
+                    $summary->total_gcash += $orderTotal;
+                    break;
+                case 'grabfood':
+                    $summary->total_grabfood += $orderTotal;
+                    break;
+                case 'foodpanda':
+                    $summary->total_foodpanda += $orderTotal;
+                    break;
+                default:
+                    $summary->total_walk_in += $orderTotal;
+            }
+            
+            // Save the updated summary
+            $summary->save();
+        } catch (\Exception $e) {
+            Log::error('Failed to update summary: ' . $e->getMessage());
         }
     }
 }

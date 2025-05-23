@@ -8,7 +8,10 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\Cook;
 use App\Models\ProductSold;
+use App\Models\Order;
+use App\Models\Summary;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class StaffDashboardController extends Controller
 {
@@ -230,5 +233,32 @@ class StaffDashboardController extends Controller
         });
     
         return response()->json(['products' => $products]);
+    }
+
+    public function store(Request $request)
+    {
+        try {
+            // Validate required fields
+            $request->validate([
+                'total' => 'required|numeric',
+                'payment_method' => 'required|string'
+            ]);
+            
+            // This method is deprecated. Checkout processing has moved to StaffOrderController
+            // This is just kept for backward compatibility
+            Log::info('Deprecated StaffDashboardController.store() called. This should be updated to use StaffOrderController.');
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'This endpoint is deprecated. Please use staff.orders.store route instead.'
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Failed to process order: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process order: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

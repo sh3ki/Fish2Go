@@ -110,7 +110,7 @@ Route::middleware(['staff'])->group(function () {
     Route::get('/staff/inventory', [StaffInventoryController::class, 'index'])->name('staff.inventory');
     Route::get('/staff/products', [StaffProductController::class, 'index'])->name('staff.products');
     Route::post('/staff/checkout', [StaffDashboardController::class, 'store'])->name('staff.checkout');
-
+ 
     //Orders
     Route::get('/staff/orders', [StaffOrderController::class, 'index'])->name('staff.orders.index');
     Route::post('/staff/orders/store', [StaffOrderController::class, 'store'])->name('staff.orders.store');
@@ -148,6 +148,8 @@ Route::middleware(['staff'])->group(function () {
 
      //Summary
      Route::get('/staff/summary', [StaffSummaryController::class, 'index'])->name('staff.summary');
+     Route::get('/api/staff/summary', [StaffSummaryController::class, 'getStats'])->name('api.staff.summary');
+
 });
 
 require __DIR__.'/settings.php';
