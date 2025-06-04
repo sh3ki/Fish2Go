@@ -40,7 +40,7 @@
         {{-- Simple version that works in all scenarios --}}
         @php
             $isNgrokRequest = strpos(request()->getHost(), 'ngrok-free.app') !== false;
-            $viteUrl = $isNgrokRequest ? env('NGROK_VITE_URL') : 'http://192.168.1.8:5173';
+            $viteUrl = $isNgrokRequest ? env('NGROK_VITE_URL') : null;
         @endphp
 
         @if($isNgrokRequest)
@@ -48,16 +48,18 @@
             <script type="module" src="{{ $viteUrl }}/@vite/client"></script>
             <script type="module" src="{{ $viteUrl }}/resources/js/app.tsx"></script>
             <link rel="stylesheet" href="{{ $viteUrl }}/resources/css/app.css">
-            @if(isset($page['component']))
+            {{-- Optionally include page component only if you know it's an entry point --}}
+            {{-- @if(isset($page['component']))
                 <script type="module" src="{{ $viteUrl }}/resources/js/pages/{{ $page['component'] }}.tsx"></script>
-            @endif
+            @endif --}}
         @else
-            {{-- Standard Vite for local development --}}
+            {{-- Standard Vite for production --}}
             @viteReactRefresh
             @vite(['resources/css/app.css', 'resources/js/app.tsx'])
-            @if(isset($page['component']))
+            {{-- Do NOT dynamically include page components unless they are Vite entry points --}}
+            {{-- @if(isset($page['component']))
                 @vite("resources/js/pages/{$page['component']}.tsx")
-            @endif
+            @endif --}}
         @endif
         
         @inertiaHead
