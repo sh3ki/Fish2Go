@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Models\Expense;
+use App\Models\Summary;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -117,6 +118,10 @@ class StaffExpensesController extends Controller
         ]);
 
         try {
+            // Begin transaction to ensure data consistency
+            DB::beginTransaction();
+            
+            // Create the expense record
             $expense = Expense::create([
                 'user_id' => auth()->id(),
                 'title' => $validated['title'],
@@ -125,6 +130,37 @@ class StaffExpensesController extends Controller
                 'date' => $validated['date'],
             ]);
 
+            // Update or create the summary record for this date
+            $expenseDate = $validated['date'];
+            $expenseAmount = (float)$validated['amount'];
+            
+            // Try to find summary record for this date
+            $summary = Summary::firstOrNew(['date' => $expenseDate]);
+            
+            // If it's a new record, initialize with zeros
+            if (!$summary->exists) {
+                $summary->total_gross_sales = 0;
+                $summary->total_net_sales = 0;
+                $summary->total_walk_in = 0;
+                $summary->total_gcash = 0;
+                $summary->total_grabfood = 0;
+                $summary->total_foodpanda = 0;
+                $summary->total_register_cash = 0;
+                $summary->total_deposited = 0;
+                $summary->total_expenses = $expenseAmount;
+            } else {
+                // Add the new expense to existing total
+                $summary->total_expenses += $expenseAmount;
+                // Recalculate net sales
+                $summary->total_net_sales = $summary->total_gross_sales - $summary->total_expenses;
+            }
+            
+            // Save the summary record
+            $summary->save();
+            
+            // Commit the transaction
+            DB::commit();
+            
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -135,6 +171,9 @@ class StaffExpensesController extends Controller
 
             return redirect()->back()->with('success', 'Expense saved successfully.');
         } catch (\Exception $e) {
+            // Roll back the transaction in case of error
+            DB::rollBack();
+            
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false, 

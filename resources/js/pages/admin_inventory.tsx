@@ -489,6 +489,13 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
     fetchInventoryData();
   }, []);
 
+  // Add the formatting utility function to match staff_inventory.tsx
+  const formatNumber = (value: number | null | undefined): string => {
+    // Ensure we're working with a valid number
+    const numValue = Number(value || 0);
+    return Number.isInteger(numValue) ? numValue.toString() : numValue.toFixed(2).replace(/\.?0+$/, '');
+  };
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Inventory" />
@@ -594,7 +601,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                       onClick={() => handleSortOption("qty", sortField === "qty" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
-                        Qty
+                        Stock
                         {sortField === "qty" && (
                           sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
                         )}
@@ -684,7 +691,7 @@ export default function AdminInventory({ inventory, newestItems }: PageProps) {
                           ₱ {parseFloat(item.inventory_price.toString()).toFixed(2)}
                         </td>
                         <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
-                          {item.inventory_qty}
+                          {formatNumber(item.inventory_qty)}
                         </td>
                         <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
                           ₱ {(parseFloat(item.inventory_price.toString()) * item.inventory_qty).toFixed(2)}

@@ -12,32 +12,104 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use App\Models\ProductSold;
+use Carbon\Carbon;
 
 class AdminProductController extends Controller
 {
+    /**
+     * Initialize product_sold records for today if they don't exist
+     *
+     * @param string $today The current date
+     * @return void
+     */
+    private function initializeProductSoldForToday($today)
+    {
+        // Check if any records exist for today
+        $todayRecordsCount = ProductSold::where('date', $today)->count();
+        
+        if ($todayRecordsCount === 0) {
+            \Log::info("Initializing product_sold records for {$today}");
+            $recordsCreated = 0;
+            
+            // Get yesterday's date for fetching previous records
+            $yesterday = Carbon::parse($today)->subDay()->toDateString();
+            
+            // Get all products
+            $products = Product::with(['category'])->get();
+            
+            foreach ($products as $product) {
+                // Find the most recent product_sold record for this product
+                $latestRecord = ProductSold::where('product_id', $product->product_id)
+                    ->orderBy('date', 'desc')
+                    ->first();
+                
+                // Get previous product_qty (from yesterday or default to product's qty)
+                $previousQty = $product->product_qty;
+                
+                if ($latestRecord) {
+                    // Start with remaining quantity from previous record
+                    $previousQty = $latestRecord->product_qty - $latestRecord->product_sold;
+                    
+                    // Ensure we don't go below zero
+                    $previousQty = max(0, $previousQty);
+                }
+                
+                // Create new record for today
+                ProductSold::create([
+                    'product_id' => $product->product_id,
+                    'date' => $today,
+                    'product_qty' => $previousQty,
+                    'product_sold' => 0 // Start with 0 sold
+                ]);
+                
+                $recordsCreated++;
+            }
+            
+            \Log::info("Initialized {$recordsCreated} product_sold records for {$today}");
+        }
+    }
+
     public function index()
     {
-        // Changed from paginate(10) to paginate(30) to show more products initially 
-        $products = Product::with('category')->latest()->paginate(30);
-        $newestProducts = Product::with('category')->latest()->take(10)->get();
+        // Get today's date
+        $today = Carbon::now()->toDateString();
+        
+        // Initialize product_sold records for today if needed
+        $this->initializeProductSoldForToday($today);
+        
+        // Get all products with their today's product_sold records
+        $products = Product::with(['category', 'productSold' => function($query) use ($today) {
+            $query->where('date', $today);
+        }])->latest()->get();
+        
+        $newestProducts = Product::with(['category', 'productSold' => function($query) use ($today) {
+            $query->where('date', $today);
+        }])->latest()->take(10)->get();
     
         return Inertia::render('admin_product', [
             'products' => [
-                'data' => $products->map(function ($product) {
+                'data' => $products->map(function ($product) use ($today) {
+                    // Get product_sold data for today
+                    $productSoldToday = $product->productSold->first();
+                    $soldQty = $productSoldToday ? $productSoldToday->product_qty : 0;
+                    
                     return [
                         'product_id' => $product->product_id,
                         'product_name' => $product->product_name,
                         'category_id' => $product->category_id,
                         'category_name' => $product->category->category_name ?? 'Unknown', 
                         'product_price' => $product->product_price,
-                        'product_qty' => $product->product_qty,
+                        'product_qty' => $soldQty, // Use today's product_sold.product_qty
+                        'product_sold' => $productSoldToday ? $productSoldToday->product_sold : 0,
                         'product_image' => $product->product_image ? 'products/' . $product->product_image : null,
                         'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
+                        'today' => $today,
                     ];
                 }),
-                'current_page' => $products->currentPage(),
-                'last_page' => $products->lastPage(),
-                'total' => $products->total(),
+                'current_page' => 1,
+                'last_page' => 1,
+                'total' => $products->count(),
             ],
             'newestProducts' => $newestProducts,
         ]);
@@ -45,14 +117,24 @@ class AdminProductController extends Controller
 
     public function fetchNewestProducts()
     {
-        $newestProducts = Product::with('category')->latest()->take(10)->get()->map(function ($product) {
+        // Get today's date
+        $today = Carbon::now()->toDateString();
+        
+        $newestProducts = Product::with(['category', 'productSold' => function($query) use ($today) {
+            $query->where('date', $today);
+        }])->latest()->take(10)->get()->map(function ($product) use ($today) {
+            // Get product_sold data for today
+            $productSoldToday = $product->productSold->first();
+            $soldQty = $productSoldToday ? $productSoldToday->product_qty : 0;
+            
             return [
                 'product_id' => $product->product_id,
                 'product_name' => $product->product_name,
                 'category_id' => $product->category_id,
                 'category_name' => $product->category->category_name ?? 'Unknown',
                 'product_price' => $product->product_price,
-                'product_qty' => $product->product_qty,
+                'product_qty' => $soldQty, // Use today's product_sold.product_qty
+                'product_sold' => $productSoldToday ? $productSoldToday->product_sold : 0,
                 'product_image' => $product->product_image ? 'products/' . $product->product_image : null,
                 'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
             ];
@@ -63,13 +145,20 @@ class AdminProductController extends Controller
 
     public function fetchProducts(Request $request)
     {
-        // Get page, search, and category filter parameters
-        $page = $request->query('page', 1);
+        // Get today's date
+        $today = Carbon::now()->toDateString();
+        
+        // Initialize product_sold records for today if needed
+        $this->initializeProductSoldForToday($today);
+        
+        // Get search and category filter parameters
         $search = $request->query('search');
         $category = $request->query('category');
         
-        // Start query building with eager loading of category
-        $query = Product::with('category')->latest();
+        // Start query building with eager loading of category and product_sold
+        $query = Product::with(['category', 'productSold' => function($query) use ($today) {
+            $query->where('date', $today);
+        }])->latest();
         
         // Apply search filter if provided
         if ($search) {
@@ -81,18 +170,23 @@ class AdminProductController extends Controller
             $query->where('category_id', $category);
         }
         
-        // Execute query with pagination (20 items per page for better lazy loading)
-        $products = $query->paginate(20);
+        // Get all products without pagination
+        $products = $query->get();
     
         // Transform product data
-        $productsData = $products->getCollection()->map(function ($product) {
+        $productsData = $products->map(function ($product) use ($today) {
+            // Get product_sold data for today
+            $productSoldToday = $product->productSold->first();
+            $soldQty = $productSoldToday ? $productSoldToday->product_qty : 0;
+            
             return [
                 'product_id' => $product->product_id,
                 'product_name' => $product->product_name,
                 'category_id' => $product->category_id,
                 'category_name' => $product->category->category_name ?? 'Unknown',
                 'product_price' => $product->product_price,
-                'product_qty' => $product->product_qty,
+                'product_qty' => $soldQty, // Use today's product_sold.product_qty
+                'product_sold' => $productSoldToday ? $productSoldToday->product_sold : 0,
                 'product_image' => $product->product_image ? 'products/' . $product->product_image : null,
                 'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
             ];
@@ -101,9 +195,9 @@ class AdminProductController extends Controller
         return response()->json([
             'products' => [
                 'data' => $productsData,
-                'current_page' => $products->currentPage(),
-                'last_page' => $products->lastPage(),
-                'total' => $products->total(),
+                'current_page' => 1,
+                'last_page' => 1,
+                'total' => $products->count(),
             ]
         ]);
     }
@@ -261,8 +355,33 @@ class AdminProductController extends Controller
         $product->product_price = $validated['product_price'];
         $product->product_qty = $validated['product_qty'];
         
+        // Update today's product_sold record if it exists
+        $today = Carbon::now()->toDateString();
+        $productSoldToday = ProductSold::where('product_id', $id)
+            ->where('date', $today)
+            ->first();
+            
+        if ($productSoldToday) {
+            // Update the product_qty in product_sold record
+            $productSoldToday->product_qty = $validated['product_qty'];
+            $productSoldToday->save();
+        } else {
+            // Create a new record for today
+            ProductSold::create([
+                'product_id' => $id,
+                'date' => $today,
+                'product_qty' => $validated['product_qty'],
+                'product_sold' => 0
+            ]);
+        }
+        
         // Save the product
         $product->save();
+
+        // Get today's product_sold data for the response
+        $productSoldData = ProductSold::where('product_id', $id)
+            ->where('date', $today)
+            ->first();
 
         // Return success response with updated product including proper image path
         return response()->json([
@@ -274,7 +393,8 @@ class AdminProductController extends Controller
                 'category_id' => $product->category_id,
                 'category_name' => $product->category->category_name ?? 'Unknown',
                 'product_price' => $product->product_price,
-                'product_qty' => $product->product_qty,
+                'product_qty' => $productSoldData ? $productSoldData->product_qty : $product->product_qty,
+                'product_sold' => $productSoldData ? $productSoldData->product_sold : 0,
                 'product_image' => $product->product_image ? 'products/' . $product->product_image : null,
                 'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
             ]
@@ -310,13 +430,26 @@ class AdminProductController extends Controller
 
     public function getProducts()
     {
-        return response()->json(Product::all()->map(function ($product) {
+        // Get today's date
+        $today = Carbon::now()->toDateString();
+        
+        // Initialize product_sold records for today if needed
+        $this->initializeProductSoldForToday($today);
+        
+        return response()->json(Product::with(['productSold' => function($query) use ($today) {
+            $query->where('date', $today);
+        }])->get()->map(function ($product) {
+            // Get product_sold data for today
+            $productSoldToday = $product->productSold->first();
+            $soldQty = $productSoldToday ? $productSoldToday->product_qty : 0;
+            
             return [
                 'product_id' => $product->product_id,
                 'product_name' => $product->product_name,
                 'category_id' => $product->category_id,
                 'product_price' => $product->product_price,
-                'product_qty' => $product->product_qty,
+                'product_qty' => $soldQty, // Use today's product_sold.product_qty
+                'product_sold' => $productSoldToday ? $productSoldToday->product_sold : 0,
                 'product_image' => $product->product_image ? 'products/' . $product->product_image : null,
                 'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i:s') : null,
             ];

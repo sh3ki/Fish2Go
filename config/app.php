@@ -8,7 +8,7 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
-    'url' => env('APP_URL', 'http://192.168.1.3:8000'),
+    'url' => env('APP_URL', 'http://192.168.1.8:8000'),
 
     'asset_url' => env('ASSET_URL'),
 

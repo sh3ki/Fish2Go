@@ -31,8 +31,10 @@ interface Product {
   category_name?: string;
   product_price: number;
   product_qty: number;
+  product_sold?: number;
   product_image: string | null;
   created_at: string;
+  today?: string;
 }
 
 interface PageProps {
@@ -138,13 +140,19 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
         return sortDirection === "asc" ? priceA - priceB : priceB - priceA;
       });
     } else if (sortField === "qty") {
-      sorted.sort((a, b) => 
-        sortDirection === "asc" ? a.product_qty - b.product_qty : b.product_qty - a.product_qty
-      );
+      sorted.sort((a, b) => {
+        // Sort by available quantity (product_qty - product_sold)
+        const qtyA = a.product_qty - (a.product_sold || 0);
+        const qtyB = b.product_qty - (b.product_sold || 0);
+        return sortDirection === "asc" ? qtyA - qtyB : qtyB - qtyA;
+      });
     } else if (sortField === "total") {
       sorted.sort((a, b) => {
-        const totalA = parseFloat(a.product_price.toString()) * a.product_qty;
-        const totalB = parseFloat(b.product_price.toString()) * b.product_qty;
+        // Calculate remaining stock value
+        const remainingA = a.product_qty - (a.product_sold || 0);
+        const remainingB = b.product_qty - (b.product_sold || 0);
+        const totalA = parseFloat(a.product_price.toString()) * remainingA;
+        const totalB = parseFloat(b.product_price.toString()) * remainingB;
         return sortDirection === "asc" ? totalA - totalB : totalB - totalA;
       });
     }
@@ -159,12 +167,13 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
   };
 
   // Get user-friendly status text based on quantity
-  const getStatusText = (qty: number): string => {
-    if (qty >= 30) return "High Stock";
-    if (qty >= 10) return "In Stock";
-    if (qty >= 5) return "Low Stock";
-    if (qty === 0) return "Out of Stock";
-    return "Backorder";
+  const getStatusText = (qty: number, sold: number = 0): string => {
+    const remaining = Math.max(0, qty - sold);
+    if (remaining >= 30) return "High Stock";
+    if (remaining >= 10) return "In Stock";
+    if (remaining >= 5) return "Low Stock";
+    if (remaining === 0) return "Out of Stock";
+    return "Low Stock";
   };
 
   const handleSortOption = (field: string, direction: "asc" | "desc") => {
@@ -383,8 +392,11 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
     let filtered = [...productList];
     
     if (categoryId === "available") {
-      // Filter products with quantity > 0
-      filtered = filtered.filter(product => product.product_qty > 0);
+      // Filter products with remaining quantity > 0
+      filtered = filtered.filter(product => {
+        const remaining = product.product_qty - (product.product_sold || 0);
+        return remaining > 0;
+      });
     } else if (categoryId !== "all") {
       filtered = filtered.filter(product => product.category_id === categoryId);
     }
@@ -684,7 +696,7 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                       onClick={() => handleSortOption("qty", sortField === "qty" && sortDirection === "asc" ? "desc" : "asc")}
                     >
                       <div className="flex items-center justify-center">
-                        Qty
+                        Stock
                         {sortField === "qty" && (
                           sortDirection === "asc" ? <ArrowUp size={12} className="ml-1" /> : <ArrowDown size={12} className="ml-1" />
                         )}
@@ -779,21 +791,23 @@ export default function AdminProduct({ products, categories = [] }: PageProps) {
                         <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-20">
                           ₱ {parseFloat(product.product_price.toString()).toFixed(2)}
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm text-gray-300 w-14">
-                          {product.product_qty}
+                        <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-gray-300 w-14">
+                          {/* Display product_qty from product_sold */}
+                          {product.product_qty - (product.product_sold || 0)}
                         </td>
                         <td className="px-1 py-1 text-center whitespace-nowrap text-sm font-medium text-green-300 w-24">
-                          ₱ {(parseFloat(product.product_price.toString()) * product.product_qty).toFixed(2)}
+                          {/* Use remaining quantity (product_qty - product_sold) for total value calculation */}
+                          ₱ {(parseFloat(product.product_price.toString()) * (product.product_qty - (product.product_sold || 0))).toFixed(2)}
                         </td>
                         <td className="px-1 py-1 text-center whitespace-nowrap w-28">
                           <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${product.product_qty >= 30 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
-                              product.product_qty >= 10 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                              product.product_qty >= 5 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
-                              product.product_qty === 0 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
+                            ${(product.product_qty - (product.product_sold || 0)) >= 30 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
+                              (product.product_qty - (product.product_sold || 0)) >= 10 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                              (product.product_qty - (product.product_sold || 0)) >= 5 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                              (product.product_qty - (product.product_sold || 0)) === 0 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
                               "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}
                           >
-                            {getStatusText(product.product_qty)}
+                            {getStatusText(product.product_qty, product.product_sold)}
                           </span>
                         </td>
                         <td className="px-1 py-1 text-center text-sm text-gray-300 w-26">

@@ -403,4 +403,52 @@ class StaffDeliveryController extends Controller
             ]);
         }
     }
+    
+    /**
+     * Confirm the delivery and update stock levels
+     * Route: staff.delivery.confirm
+     */
+    public function confirm(Request $request, $id)
+    {
+        try {
+            $delivery = Deliveries::findOrFail($id);
+            $today = \Carbon\Carbon::now()->toDateString();
+
+            $delivery->status = 'confirmed';
+            $delivery->save();
+
+            if ($delivery->type === 'inventory') {
+                // Update inventory_used column for today's record
+                $inventoryUsed = \App\Models\InventoryUsed::where('inventory_id', $delivery->inventory_id)
+                    ->where('date', $today)
+                    ->first();
+                if ($inventoryUsed) {
+                    $inventoryUsed->inventory_used += $delivery->delivery_qty;
+                    // Recompute end
+                    $inventoryUsed->inventory_end = $inventoryUsed->inventory_beg - $inventoryUsed->inventory_used;
+                    $inventoryUsed->save();
+                }
+            } else if ($delivery->type === 'product') {
+                // Update product_sold column for today's record
+                $productSold = \App\Models\ProductSold::where('product_id', $delivery->product_id)
+                    ->where('date', $today)
+                    ->first();
+                if ($productSold) {
+                    $productSold->product_sold += $delivery->delivery_qty;
+                    $productSold->save();
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Delivery confirmed and stock updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to confirm delivery: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm delivery: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

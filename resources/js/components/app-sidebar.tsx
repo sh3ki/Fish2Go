@@ -2,7 +2,11 @@ import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, updateDoc, getDocs } from "firebase/firestore";
 import { Link } from "@inertiajs/react";
-import { LayoutGrid, ShoppingCart, ClipboardList, PhilippinePeso, HandCoins, Users, SquarePercent, MessageCircleMore } from "lucide-react";
+import {
+    LayoutGrid, Users, SquarePercent,
+    ClipboardList, ChefHat, ReceiptText, CreditCard, Wallet, MessageCircleMore,
+    ShoppingCart, PhilippinePeso, HandCoins
+} from "lucide-react";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { NavMain } from "@/components/nav-main";
 import { NavFooter } from "@/components/nav-footer";
@@ -36,19 +40,17 @@ export function AppSidebar() {
 
     const mainNavItems = [
         { title: "Dashboard", url: "/admin/dashboard", icon: LayoutGrid },
-        { title: "Inventory", url: "/admin/inventory", icon: ShoppingCart },
-        { title: "Products", url: "/admin/products", icon: ClipboardList },
-        { title: "Sales", url: "/admin/sales", icon: PhilippinePeso },
-        { title: "Expenses", url: "/admin/expenses", icon: HandCoins },
-        { title: "Staff Management", url: "/admin/staffmanagement", icon: Users },
-        { title: "Promotions", url: "/admin/promotions", icon: SquarePercent },
-        { title: "Summary", url: "/admin/summary", icon: SquarePercent },
-        { 
-            title: "Messages", 
-            url: "/admin/messages", 
+        { title: "Transactions", url: "/admin/sales", icon: ReceiptText }, 
+        { title: "Inventory", url: "/admin/inventory", icon: ClipboardList }, 
+        { title: "Products", url: "/admin/products", icon: ChefHat }, 
+        { title: "Expenses", url: "/admin/expenses", icon: CreditCard }, 
+        { title: "Summary", url: "/admin/summary", icon: Wallet }, 
+        {
+            title: "Messages",
+            url: "/admin/messages",
             icon: MessageCircleMore,
             count: newMessageCount > 0 ? newMessageCount : null,
-            onClick: markMessagesAsSeen // 👈 Reset count on click
+            onClick: markMessagesAsSeen
         }
     ];
 

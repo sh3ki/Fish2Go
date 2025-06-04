@@ -14,6 +14,22 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: "POS", href: "/staff/pos" }];
 export default function POS() {
     const { products: initialProducts, categories } = usePage().props;
 
+    // Define shared stock product pairs
+    const sharedStockPairs = [
+        [37, 38], // First pair
+        [39, 40]  // Second pair
+    ];
+    
+    // Helper function to check if a product is part of a shared stock pair
+    const getSharedStockPair = (productId) => {
+        for (const pair of sharedStockPairs) {
+            if (pair.includes(productId)) {
+                return pair;
+            }
+        }
+        return null;
+    };
+
     const [availableProducts, setAvailableProducts] = useState(initialProducts);
     const [selectedItems, setSelectedItems] = useState([]);
     const [cash, setCash] = useState("");
@@ -267,10 +283,21 @@ export default function POS() {
             return;
         }
 
-        // Update available products with special handling for grilled products
+        // Check if this product is part of a shared stock pair
+        const sharedPair = getSharedStockPair(product.product_id);
+
+        // Update available products with special handling for shared stock pairs
         setAvailableProducts(prev => {
             return prev.map(p => {
-                if (p.product_id === product.product_id) {
+                // If this is a shared stock product, update both products in the pair
+                if (sharedPair && sharedPair.includes(p.product_id)) {
+                    return {
+                        ...p,
+                        product_qty: Math.max(0, parseInt(p.product_qty) - 1)
+                    };
+                } 
+                // For regular products, only update the clicked product
+                else if (p.product_id === product.product_id) {
                     return {
                         ...p,
                         product_qty: Math.max(0, parseInt(p.product_qty) - 1)
@@ -296,9 +323,20 @@ export default function POS() {
     const removeItem = (id) => {
         const item = selectedItems.find(item => item.product_id === id);
         if (item) {
+            // Check if this product is part of a shared stock pair
+            const sharedPair = getSharedStockPair(id);
+
             setAvailableProducts(prev => {
                 return prev.map(p => {
-                    if (p.product_id === id) {
+                    // If this is a shared stock product, update both products in the pair
+                    if (sharedPair && sharedPair.includes(p.product_id)) {
+                        return {
+                            ...p,
+                            product_qty: parseInt(p.product_qty) + item.qty
+                        };
+                    }
+                    // For regular products, only update this product
+                    else if (p.product_id === id) {
                         return {
                             ...p,
                             product_qty: parseInt(p.product_qty) + item.qty
@@ -333,10 +371,21 @@ export default function POS() {
             }
         }
 
+        // Check if this product is part of a shared stock pair
+        const sharedPair = getSharedStockPair(id);
+
         // Update available products
         setAvailableProducts(prev => {
             return prev.map(p => {
-                if (p.product_id === id) {
+                // If this is a shared stock product, update both products in the pair
+                if (sharedPair && sharedPair.includes(p.product_id)) {
+                    return {
+                        ...p,
+                        product_qty: parseInt(p.product_qty) - delta
+                    };
+                }
+                // For regular products, only update this product
+                else if (p.product_id === id) {
                     return {
                         ...p,
                         product_qty: parseInt(p.product_qty) - delta
@@ -393,21 +442,6 @@ export default function POS() {
         if (focusedItemId && editableQty !== null) {
             // If the quantity is empty or zero, remove the item and restore stock
             if (!editableQty || editableQty === '0') {
-                const originalProduct = initialProducts.find(p => p.product_id === focusedItemId);
-                if (originalProduct) {
-                    // Reset to initial stock when removing the item
-                    setAvailableProducts(prev => {
-                        return prev.map(p => {
-                            if (p.product_id === focusedItemId) {
-                                return {
-                                    ...p,
-                                    product_qty: parseInt(originalProduct.product_qty)
-                                };
-                            }
-                            return p;
-                        });
-                    });
-                }
                 removeItem(focusedItemId);
                 return;
             }
@@ -430,9 +464,20 @@ export default function POS() {
                     
                     setEditableQty(selectedItem.qty.toString());
                     
+                    // Check if this product is part of a shared stock pair
+                    const sharedPair = getSharedStockPair(focusedItemId);
+                    
                     setAvailableProducts(prev => {
                         return prev.map(p => {
-                            if (p.product_id === focusedItemId) {
+                            // If this is a shared stock product, update both products in the pair
+                            if (sharedPair && sharedPair.includes(p.product_id)) {
+                                return {
+                                    ...p,
+                                    product_qty: totalAvailableStock - selectedItem.qty
+                                };
+                            }
+                            // For regular products, only update this product
+                            else if (p.product_id === focusedItemId) {
                                 return {
                                     ...p,
                                     product_qty: totalAvailableStock - selectedItem.qty
@@ -444,6 +489,12 @@ export default function POS() {
                     
                     return;
                 }
+                
+                // Calculate the quantity difference
+                const qtyDifference = parsedQty - selectedItem.qty;
+                
+                // Check if this product is part of a shared stock pair
+                const sharedPair = getSharedStockPair(focusedItemId);
                 
                 // Update selected items
                 setSelectedItems(prev => {
@@ -458,10 +509,18 @@ export default function POS() {
                 // Update available products
                 setAvailableProducts(prev => {
                     return prev.map(p => {
-                        if (p.product_id === focusedItemId) {
+                        // If this is a shared stock product, update both products in the pair
+                        if (sharedPair && sharedPair.includes(p.product_id)) {
                             return {
                                 ...p,
-                                product_qty: totalAvailableStock - parsedQty
+                                product_qty: Math.max(0, parseInt(p.product_qty) - qtyDifference)
+                            };
+                        } 
+                        // For regular products, only update this product
+                        else if (p.product_id === focusedItemId) {
+                            return {
+                                ...p,
+                                product_qty: Math.max(0, parseInt(p.product_qty) - qtyDifference)
                             };
                         }
                         return p;

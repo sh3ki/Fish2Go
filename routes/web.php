@@ -45,8 +45,11 @@ Route::get('/webhook/inventory-update', [App\Http\Controllers\StaffInventoryCont
 Route::middleware(['admin'])->group(function () {
     //Dashboard
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-    Route::get('/admin/inventory', [AdminInventoryController::class, 'index'])->name('admin.inventory');
+    Route::get('/admin/dashboard/cards', [AdminDashboardController::class, 'getCardData']);
+    Route::get('/admin/dashboard/sales-chart', [AdminDashboardController::class, 'getSalesChartData']);
+    Route::get('/admin/dashboard/top-products', [AdminDashboardController::class, 'getTopProducts']);
     Route::get('/admin/dashboard/payment-method-percentages', [AdminDashboardController::class, 'paymentMethodPercentages']);
+    Route::get('/api/admin/dashboard/today', [AdminDashboardController::class, 'getTodayStats']); // Add this new route
 
     //Products
     Route::get('/admin/products', [AdminProductController::class, 'index'])->name('admin.products');
@@ -98,9 +101,11 @@ Route::middleware(['admin'])->group(function () {
     //Expenses
     Route::get('/api/expenses', [AdminExpensesController::class, 'getExpenses'])->name('expenses.get');
     Route::delete('/api/expenses/{id}', [AdminExpensesController::class, 'destroy'])->name('expenses.destroy');
+    Route::post('/api/expenses', [AdminExpensesController::class, 'store'])->name('expenses.store'); // <-- Add this line
 
     //Summary
     Route::get('/admin/summary', [AdminSummaryController::class, 'index'])->name('admin.summary');
+    Route::get('/admin/summary/stats', [AdminSummaryController::class, 'getStats']); // <-- Add this line
    
 });
 

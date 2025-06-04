@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Inventory;
+use App\Models\Summary;
 use Illuminate\Support\Facades\DB;
 use App\Models\Order;
 
@@ -21,23 +22,34 @@ class AdminDashboardController extends Controller
         $totalInventory = Inventory::count();
         $staffUsers = User::where('usertype', 'staff')->get();
         
-        // Get financial data for today
-        $totalSales = Order::whereDate('created_at', $today)->sum('order_total');
-        $totalExpense = DB::table('expenses')->whereDate('created_at', $today)->sum('amount');
-        $totalCash = $totalSales - $totalExpense;
-        $totalDeposited = DB::table('summaries')->whereDate('created_at', $today)->sum('total_deposited');
+        // Get today's summary from summary table
+        $todaySummary = Summary::where('date', $today)->first();
         
-        // Get payment method breakdowns
-        $cashSales = Order::where('order_payment_method', 'cash')->whereDate('created_at', $today)->sum('order_total');
-        $gcashSales = Order::where('order_payment_method', 'gcash')->whereDate('created_at', $today)->sum('order_total');
-        $grabfoodSales = Order::where('order_payment_method', 'grabfood')->whereDate('created_at', $today)->sum('order_total');
-        $foodpandaSales = Order::where('order_payment_method', 'foodpanda')->whereDate('created_at', $today)->sum('order_total');
-
-        return Inertia::render('dashboard', [
-            'totalProducts' => $totalProducts,
-            'totalInventory' => $totalInventory,
-            'staffUsers' => $staffUsers,
-            'todayFinancials' => [
+        if ($todaySummary) {
+            // Use summary data if available
+            $todayFinancials = [
+                'totalSales' => $todaySummary->total_gross_sales,
+                'totalExpense' => $todaySummary->total_expenses,
+                'totalCash' => $todaySummary->total_net_sales,
+                'totalDeposited' => $todaySummary->total_deposited,
+                'cashSales' => $todaySummary->total_walk_in,
+                'gcashSales' => $todaySummary->total_gcash,
+                'grabfoodSales' => $todaySummary->total_grabfood,
+                'foodpandaSales' => $todaySummary->total_foodpanda,
+            ];
+        } else {
+            // Fallback to calculating directly from orders/expenses if no summary exists
+            $totalSales = Order::whereDate('created_at', $today)->sum('order_total');
+            $totalExpense = DB::table('expenses')->whereDate('created_at', $today)->sum('amount');
+            $totalCash = $totalSales - $totalExpense;
+            $totalDeposited = DB::table('summaries')->whereDate('created_at', $today)->sum('total_deposited');
+            
+            $cashSales = Order::where('order_payment_method', 'cash')->whereDate('created_at', $today)->sum('order_total');
+            $gcashSales = Order::where('order_payment_method', 'gcash')->whereDate('created_at', $today)->sum('order_total');
+            $grabfoodSales = Order::where('order_payment_method', 'grabfood')->whereDate('created_at', $today)->sum('order_total');
+            $foodpandaSales = Order::where('order_payment_method', 'foodpanda')->whereDate('created_at', $today)->sum('order_total');
+            
+            $todayFinancials = [
                 'totalSales' => $totalSales,
                 'totalExpense' => $totalExpense,
                 'totalCash' => $totalCash,
@@ -46,7 +58,14 @@ class AdminDashboardController extends Controller
                 'gcashSales' => $gcashSales,
                 'grabfoodSales' => $grabfoodSales,
                 'foodpandaSales' => $foodpandaSales,
-            ],
+            ];
+        }
+
+        return Inertia::render('dashboard', [
+            'totalProducts' => $totalProducts,
+            'totalInventory' => $totalInventory,
+            'staffUsers' => $staffUsers,
+            'todayFinancials' => $todayFinancials,
         ]);
     }
 
@@ -150,6 +169,168 @@ class AdminDashboardController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error fetching payment percentages: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch payment percentages'], 500);
+        }
+    }
+
+    // Add a new endpoint for fetching today's data separately (like in StaffSummaryController)
+    public function getTodayStats(Request $request)
+    {
+        $date = $request->input('date', now()->toDateString());
+        
+        // Try to get data from summary table first
+        $summary = Summary::where('date', $date)->first();
+        
+        if ($summary) {
+            // Return data from summary record if it exists
+            return response()->json([
+                'totalSales' => $summary->total_gross_sales,
+                'totalExpense' => $summary->total_expenses,
+                'totalCash' => $summary->total_net_sales,
+                'totalDeposited' => $summary->total_deposited,
+                'cashSales' => $summary->total_walk_in,
+                'gcashSales' => $summary->total_gcash,
+                'grabfoodSales' => $summary->total_grabfood,
+                'foodpandaSales' => $summary->total_foodpanda,
+            ]);
+        }
+        
+        // Fallback to calculating directly if no summary record exists
+        $totalSales = Order::whereDate('created_at', $date)->sum('order_total');
+        $totalExpense = DB::table('expenses')->whereDate('created_at', $date)->sum('amount');
+        $totalCash = $totalSales - $totalExpense;
+        $totalDeposited = DB::table('summaries')->whereDate('created_at', $date)->sum('total_deposited');
+        
+        // Get payment method breakdowns
+        $cashSales = Order::where('order_payment_method', 'cash')->whereDate('created_at', $date)->sum('order_total');
+        $gcashSales = Order::where('order_payment_method', 'gcash')->whereDate('created_at', $date)->sum('order_total');
+        $grabfoodSales = Order::where('order_payment_method', 'grabfood')->whereDate('created_at', $date)->sum('order_total');
+        $foodpandaSales = Order::where('order_payment_method', 'foodpanda')->whereDate('created_at', $date)->sum('order_total');
+
+        return response()->json([
+            'totalSales' => $totalSales,
+            'totalExpense' => $totalExpense,
+            'totalCash' => $totalCash,
+            'totalDeposited' => $totalDeposited,
+            'cashSales' => $cashSales,
+            'gcashSales' => $gcashSales,
+            'grabfoodSales' => $grabfoodSales,
+            'foodpandaSales' => $foodpandaSales,
+        ]);
+    }
+
+    /**
+     * Get just the card data for AJAX refreshing - optimized for frequent calls
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getCardData(Request $request)
+    {
+        $date = $request->input('date', now()->toDateString());
+        
+        // Try to get data from summary table first - lightweight query
+        $summary = Summary::where('date', $date)
+            ->first(['total_gross_sales', 'total_expenses', 'total_net_sales', 'total_deposited', 
+                    'total_walk_in', 'total_gcash', 'total_grabfood', 'total_foodpanda']);
+        
+        if ($summary) {
+            // Return only fields needed for cards
+            return response()->json([
+                'totalSales' => $summary->total_gross_sales,
+                'totalExpense' => $summary->total_expenses,
+                'totalCash' => $summary->total_net_sales,
+                'totalDeposited' => $summary->total_deposited,
+                'cashSales' => $summary->total_walk_in, 
+                'gcashSales' => $summary->total_gcash,
+                'grabfoodSales' => $summary->total_grabfood,
+                'foodpandaSales' => $summary->total_foodpanda,
+            ]);
+        }
+        
+        // Fallback to direct calculation if no summary exists
+        return response()->json([
+            'totalSales' => 0,
+            'totalExpense' => 0,
+            'totalCash' => 0,
+            'totalDeposited' => 0,
+            'cashSales' => 0,
+            'gcashSales' => 0,
+            'grabfoodSales' => 0,
+            'foodpandaSales' => 0,
+        ]);
+    }
+
+    /**
+     * Get sales chart data from the summary table based on date range
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getSalesChartData(Request $request)
+    {
+        try {
+            $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+            $endDate = $request->input('end_date', now()->toDateString());
+
+            // Get summary data within the date range including expense data
+            $summaries = Summary::whereBetween('date', [$startDate, $endDate])
+                ->orderBy('date')
+                ->select([
+                    'date',
+                    'total_gross_sales',
+                    'total_net_sales',
+                    'total_expenses',
+                    'total_walk_in',
+                    'total_gcash',
+                    'total_grabfood',
+                    'total_foodpanda'
+                ])
+                ->get();
+
+            // If no summaries found, return empty array
+            if ($summaries->isEmpty()) {
+                return response()->json([]);
+            }
+
+            return response()->json($summaries);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching sales chart data: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch sales chart data'], 500);
+        }
+    }
+
+    /**
+     * Get top products by quantity ordered within a date range
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getTopProducts(Request $request)
+    {
+        try {
+            $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+            $endDate = $request->input('end_date', now()->toDateString());
+            $limit = $request->input('limit', 10);
+
+            // Query to get top products by quantity ordered instead of sales amount
+            $topProducts = DB::table('orders')
+                ->join('products', 'orders.product_id', '=', 'products.product_id')
+                ->select(
+                    'products.product_id',
+                    'products.product_name',
+                    DB::raw('SUM(orders.order_quantity) as total_quantity'), // Changed to quantity
+                    DB::raw('COUNT(*) as order_count')
+                )
+                ->whereBetween('orders.created_at', [$startDate, $endDate])
+                ->groupBy('products.product_id', 'products.product_name')
+                ->orderByDesc('total_quantity') // Order by quantity
+                ->limit($limit)
+                ->get();
+
+            return response()->json($topProducts);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching top products: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch top products data'], 500);
         }
     }
 }

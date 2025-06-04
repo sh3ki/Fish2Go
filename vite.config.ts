@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
 // Force the correct APP_URL
-process.env.APP_URL = '192.168.1.3:8000';
+process.env.APP_URL = '192.168.1.8:8000';
 
 export default defineConfig({
     plugins: [
@@ -15,7 +15,7 @@ export default defineConfig({
             refresh: true,
             detectTls: false,
             // Force the URL explicitly 
-            url: '192.168.1.3:8000',
+            url: '192.168.1.8:8000',
         }),
         react(),
         tailwindcss(),
@@ -26,7 +26,7 @@ export default defineConfig({
         strictPort: true,
         https: false,
         hmr: {
-            host: '192.168.1.3',
+            host: '192.168.1.8',
             protocol: 'ws',
         },
         cors: {

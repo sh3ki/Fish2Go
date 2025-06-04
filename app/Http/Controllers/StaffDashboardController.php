@@ -15,6 +15,58 @@ use Illuminate\Support\Facades\Log;
 
 class StaffDashboardController extends Controller
 {
+    // Define the product pairs that should share stock calculations
+    protected $sharedStockPairs = [
+        [37, 38], // First pair
+        [39, 40]  // Second pair
+    ];
+    
+    // Helper method to determine if a product is part of a shared stock pair
+    private function getSharedStockPair($productId)
+    {
+        foreach ($this->sharedStockPairs as $pair) {
+            if (in_array($productId, $pair)) {
+                return $pair;
+            }
+        }
+        return null;
+    }
+    
+    // Helper method to calculate the shared stock display value
+    private function calculateSharedStock($productId, $allProducts, $today)
+    {
+        $sharedPair = $this->getSharedStockPair($productId);
+        
+        if (!$sharedPair) {
+            return null; // Not a shared stock product
+        }
+        
+        // Get all product_sold records for today for all products in the pair
+        $pairProductSold = ProductSold::whereIn('product_id', $sharedPair)
+                                      ->where('date', $today)
+                                      ->get();
+        
+        if ($pairProductSold->isEmpty()) {
+            return 0; // No records found
+        }
+        
+        // Find this product's record
+        $thisProductSold = $pairProductSold->firstWhere('product_id', $productId);
+        
+        if (!$thisProductSold) {
+            return 0;
+        }
+        
+        // Get the base stock from this product's record
+        $baseStock = $thisProductSold->product_qty;
+        
+        // Calculate total sold from all products in the pair
+        $totalSold = $pairProductSold->sum('product_sold');
+        
+        // Return stock after subtracting total sold
+        return max(0, $baseStock - $totalSold);
+    }
+
     public function index()
     {
         // Get today's date for cook data
@@ -23,8 +75,8 @@ class StaffDashboardController extends Controller
         // Check if there are product_sold records for today, initialize if needed
         $this->initializeProductSoldForToday($today);
 
-        // Fetch products with eager loading of categories and product_sold
-        $products = Product::with([
+        // First fetch all products with their relationships
+        $allProducts = Product::with([
             'category', 
             'cooks' => function($query) use ($today) {
                 $query->where('date', $today);
@@ -32,26 +84,57 @@ class StaffDashboardController extends Controller
             'productSold' => function($query) use ($today) {
                 $query->where('date', $today);
             }
-        ])->get()->map(function ($product) use ($today) {
+        ])->get();
+
+        // Then map through them to calculate stock
+        $products = $allProducts->map(function ($product) use ($today, $allProducts) {
             // Check if product is in the grilled category
             $isGrilled = $product->category && $product->category->category_name === 'Grilled';
             
-            // For grilled products, stock is always based on cook_available
-            if ($isGrilled) {
-                // Get today's cook data if it exists for grilled products
-                $cookData = $product->cooks->first();
-                
-                // If no cook data or cook_available is 0, stock is 0
-                $productStock = $cookData && $cookData->cook_available > 0 ? $cookData->cook_available : 0;
+            // Check if this is a special product that shares stock calculation
+            $productId = $product->product_id;
+            $sharedStock = $this->calculateSharedStock($productId, $allProducts, $today);
+            
+            if ($sharedStock !== null) {
+                $productStock = $sharedStock;
             } else {
-                // For non-grilled products, use product_qty from product_sold
-                $productSoldData = $product->productSold->first();
-                // If no product_sold data, stock is 0
-                $productStock = $productSoldData ? $productSoldData->product_qty - $productSoldData->product_sold : 0;
+                // For grilled products, stock is always based on cook_available
+                if ($isGrilled) {
+                    // Get today's cook data if it exists for grilled products
+                    $cookData = $product->cooks->first();
+                    
+                    // If no cook data or cook_available is 0, stock is 0
+                    $productStock = $cookData && $cookData->cook_available > 0 ? $cookData->cook_available : 0;
+                } else {
+                    // For non-grilled products, use product_qty from product_sold
+                    $productSoldData = $product->productSold->first();
+                    // If no product_sold data, stock is 0
+                    $productStock = $productSoldData ? $productSoldData->product_qty - $productSoldData->product_sold : 0;
+                }
+            }
+            
+            // Add debug logging for products 37, 38, 39, 40
+            if (in_array($productId, [37, 38, 39, 40])) {
+                \Log::info("Product #{$productId} ({$product->product_name}) stock: {$productStock}");
+                
+                // If it's a shared stock product, log additional details
+                if ($sharedStock !== null) {
+                    \Log::info("  - Using shared stock calculation");
+                    
+                    // Log the product_sold data for this pair
+                    $sharedPair = $this->getSharedStockPair($productId);
+                    $pairData = ProductSold::whereIn('product_id', $sharedPair)
+                                          ->where('date', $today)
+                                          ->get();
+                    
+                    foreach ($pairData as $record) {
+                        \Log::info("  - Product #{$record->product_id} has qty:{$record->product_qty} sold:{$record->product_sold}");
+                    }
+                }
             }
             
             return [
-                'product_id' => $product->product_id,
+                'product_id' => $productId,
                 'product_name' => $product->product_name,
                 'category_id' => $product->category_id,
                 'category_name' => $product->category->category_name ?? 'Unknown',
@@ -199,26 +282,42 @@ class StaffDashboardController extends Controller
         }
         
         // Execute query
-        $products = $query->get()->map(function ($product) use ($today) {
+        $allProducts = $query->get();
+        
+        // Map products with calculated stock values
+        $products = $allProducts->map(function ($product) use ($today, $allProducts) {
             // Check if product is in the grilled category
             $isGrilled = $product->category && $product->category->category_name === 'Grilled';
             
-            // For grilled products, stock is always based on cook_available
-            if ($isGrilled) {
-                // Get today's cook data if it exists for grilled products
-                $cookData = $product->cooks->first();
-                
-                // If no cook data or cook_available is 0, stock is 0
-                $productStock = $cookData && $cookData->cook_available > 0 ? $cookData->cook_available : 0;
+            // Check if this is a special product that shares stock calculation
+            $productId = $product->product_id;
+            $sharedStock = $this->calculateSharedStock($productId, $allProducts, $today);
+            
+            if ($sharedStock !== null) {
+                $productStock = $sharedStock;
             } else {
-                // For non-grilled products, use product_qty from product_sold
-                $productSoldData = $product->productSold->first();
-                // If no product_sold data, stock is 0
-                $productStock = $productSoldData ? $productSoldData->product_qty - $productSoldData->product_sold : 0;
+                // For grilled products, stock is always based on cook_available
+                if ($isGrilled) {
+                    // Get today's cook data if it exists for grilled products
+                    $cookData = $product->cooks->first();
+                    
+                    // If no cook data or cook_available is 0, stock is 0
+                    $productStock = $cookData && $cookData->cook_available > 0 ? $cookData->cook_available : 0;
+                } else {
+                    // For non-grilled products, use product_qty from product_sold
+                    $productSoldData = $product->productSold->first();
+                    // If no product_sold data, stock is 0
+                    $productStock = $productSoldData ? $productSoldData->product_qty - $productSoldData->product_sold : 0;
+                }
+            }
+            
+            // Add debug logging for products 37, 38, 39, 40 during fetch
+            if (in_array($productId, [37, 38, 39, 40])) {
+                \Log::info("FETCH: Product #{$productId} ({$product->product_name}) stock: {$productStock}");
             }
             
             return [
-                'product_id' => $product->product_id,
+                'product_id' => $productId,
                 'product_name' => $product->product_name,
                 'category_id' => $product->category_id,
                 'category_name' => $product->category->category_name ?? 'Unknown',
