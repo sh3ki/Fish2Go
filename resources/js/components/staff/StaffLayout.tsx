@@ -7,7 +7,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { db } from '@/lib/firebase'; // Firestore DB
 import { cn } from '@/lib/utils';
 import { router, useForm, usePage } from '@inertiajs/react';
-import { collection, getDocs, onSnapshot, query, setDoc, where } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query, setDoc, where, orderBy } from 'firebase/firestore';
 import { CookingPot, HardDrive, ClipboardList, Wallet, ReceiptText, ChefHat, CreditCard, LogOut, MessageCircleMore, Truck } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import axios from 'axios';
@@ -89,6 +89,67 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
         };
     }, []);
 
+    // 🔥 Message notification dot for avatar (same logic as admin sidebar)
+    const [hasUnread, setHasUnread] = useState(false);
+
+    useEffect(() => {
+        // Listen to all chats where the current staff user is a participant
+        // (Assume staff user id is available as auth.user.id)
+        const staffUserId = auth?.user?.id;
+        if (!staffUserId) return;
+
+        const chatsQuery = query(collection(db, "chats"), where("participants", "array-contains", staffUserId));
+        let unsubMessages: (() => void)[] = [];
+
+        const unsubscribeChats = onSnapshot(chatsQuery, (chatsSnap) => {
+            unsubMessages.forEach(unsub => unsub());
+            unsubMessages = [];
+
+            const chatIds = chatsSnap.docs.map(doc => doc.id);
+            if (chatIds.length === 0) {
+                setHasUnread(false);
+                return;
+            }
+
+            let foundUnread = false;
+            let processed = 0;
+
+            chatIds.forEach(chatId => {
+                // Listen only to the last message in each chat
+                const lastMsgQuery = query(
+                    collection(db, "chats", chatId, "messages"),
+                    orderBy("timestamp", "desc")
+                );
+                const unsub = onSnapshot(lastMsgQuery, (msgSnap) => {
+                    const lastMsgDoc = msgSnap.docs[0];
+                    if (lastMsgDoc) {
+                        const data = lastMsgDoc.data();
+                        // Only if the last message is not sent by the current user and not seen by the current user
+                        if (data.senderId !== staffUserId && !(data.seenBy || []).includes(staffUserId)) {
+                            foundUnread = true;
+                        }
+                    }
+                    processed += 1;
+                    if (processed === chatIds.length) {
+                        setHasUnread(foundUnread);
+                        foundUnread = false;
+                        processed = 0;
+                    }
+                });
+                unsubMessages.push(unsub);
+            });
+
+            if (chatIds.length === 0) {
+                setHasUnread(false);
+            }
+        });
+
+        return () => {
+            unsubscribeChats();
+            unsubMessages.forEach(unsub => unsub());
+        };
+    }, [auth?.user?.id]);
+
     return (
         <div className="flex min-h-screen flex-col">
             {/* Header Section */}
@@ -125,13 +186,21 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
 
                 <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="size-8 rounded-full p-1">
-                            <Avatar className="size-6 overflow-hidden rounded-full">
-                                <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
-                                <AvatarFallback className="rounded-lg bg-neutral-200 text-xs text-black dark:bg-neutral-700 dark:text-white">
-                                    {getInitials(auth.user.name)}
-                                </AvatarFallback>
-                            </Avatar>
+                        <Button variant="ghost" className="size-8 rounded-full p-1 relative">
+                            <span className="relative inline-block">
+                                <Avatar className="size-6 overflow-hidden rounded-full">
+                                    <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
+                                    <AvatarFallback className="rounded-lg bg-neutral-200 text-xs text-black dark:bg-neutral-700 dark:text-white">
+                                        {getInitials(auth.user.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                {hasUnread && (
+                                    <span className="absolute -top-1 -right-1 flex h-3 w-3 pointer-events-none z-10">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                    </span>
+                                )}
+                            </span>
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -195,11 +264,20 @@ export default function StaffLayout({ breadcrumbs, children }: StaffLayoutProps)
                         <button
                             className="relative flex w-full items-center gap-2 p-2 text-left hover:bg-gray-700"
                             onClick={() => {
-                                handleMessagesClick(); // ✅ Update seenbystaff on click
-                                router.get(route('staff.messages')); // ✅ Navigate to messages page
+                                handleMessagesClick();
+                                router.get(route('staff.messages'));
                             }}
                         >
-                            <MessageCircleMore size={18} /> Messages
+                            <span className="relative">
+                                <MessageCircleMore size={18} />
+                                {hasUnread && (
+                                    <span className="absolute -top-1 -right-1 flex h-3 w-3 pointer-events-none z-10">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                    </span>
+                                )}
+                            </span>
+                            Messages
                             {unreadCount > 0 && (
                                 <span className="absolute right-3 ml-2 rounded-full bg-red-500 px-2 py-1 text-xs font-bold text-white">
                                     {unreadCount}

@@ -110,7 +110,7 @@ export default function AdminSummary({ initialStats, summaries = [] }) {
       <Head title="Summary" />
       <div className="flex flex-col gap-2 rounded-xl p-4">
         {/* 8 Cards - always show today's data */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-2">
           <div className="p-4 bg-gray-300 dark:bg-gray-800 rounded-xl text-black dark:text-white flex flex-col">
             <h3 className="text-lg font-semibold flex items-center">
               <Wallet className="w-5 h-5 text-purple-500 mr-2" />
@@ -176,17 +176,19 @@ export default function AdminSummary({ initialStats, summaries = [] }) {
         </div>
 
         {/* Daterangepicker */}
-        <div className="relative inline-block mb-2">
-          <DateRangePicker
-            startDate={startDate}
-            endDate={endDate}
-            onChange={handleDateRangeChange}
-            buttonClassName="bg-gray-500 dark:bg-gray-700 rounded-lg flex items-center justify-center h-8"
-          />
+        <div className="flex justify-end">
+          <div className="relative inline-block">
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              onChange={handleDateRangeChange}
+              buttonClassName="bg-gray-500 dark:bg-gray-700 rounded-lg flex items-center justify-center h-8"
+            />
+          </div>
         </div>
 
         {/* Summaries Table */}
-        <div className="bg-gray-800 rounded-xl overflow-hidden mt-2">
+        <div className="bg-gray-800 rounded-xl overflow-hidden">
           <table className="w-full text-left">
             <thead className="bg-gray-700 text-white text-sm uppercase font-medium">
               <tr>
